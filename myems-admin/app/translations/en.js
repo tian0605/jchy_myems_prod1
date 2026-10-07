@@ -232,7 +232,17 @@
           SVG_SYSTEM: "SCADA Visualization Systems Ⓔ",
           ADVANCED_REPORT: "Advanced Report Ⓔ",
           ENERGY_PLAN_FILE: "Energy Plan File Ⓔ",
+          AI_MODEL_CONFIGURATIONS: "AI Model Configurations",
           SVG: "SVG Ⓔ",
+        },
+        AI: {
+          ASSISTANT: "AI Assistant",
+        },
+        WEB: {
+          EVALUATION_REPORT: "Evaluation Report",
+          SPACE_PRODUCTION: "Space Production",
+          BASELINE_METER_INPUT: "Baseline Meter Input",
+          CARBON_ASSET_MANAGEMENT: "Carbon Asset Management",
         },
         FDD: {
           FDD: "FDD Ⓔ",

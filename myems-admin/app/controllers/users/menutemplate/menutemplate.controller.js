@@ -23,7 +23,7 @@ var ADMIN_MENU_SECTIONS = [
             'settings.command', 'settings.controlmode', 'settings.iotsimcard', 'settings.microgrid',
             'settings.virtualpowerplant', 'settings.energystoragecontainer', 'settings.energystoragepowerstation',
             'settings.photovoltaicpowerstation', 'settings.windfarm', 'settings.emailserver',
-            'settings.advancedreport', 'settings.energyplanfile'
+            'settings.advancedreport', 'settings.energyplanfile', 'settings.aimodels'
         ]
     },
     {
@@ -62,7 +62,7 @@ var WEB_MENU_SECTIONS = [
             { state: '/space/output', name: 'Output' },
             { state: '/space/income', name: 'Income' },
             { state: '/space/efficiency', name: 'Efficiency' },
-            { state: '/space/evaluation', name: 'Evaluation Report' },
+            { state: '/space/evaluation', name: 'MENU.WEB.EVALUATION_REPORT' },
             { state: '/space/load', name: 'Load' },
             { state: '/space/statistics', name: 'Statistics' },
             { state: '/space/saving', name: 'Saving' },
@@ -70,7 +70,7 @@ var WEB_MENU_SECTIONS = [
             { state: '/space/prediction', name: 'Prediction' },
             { state: '/space/environmentmonitor', name: 'Environment Monitor' },
             { state: '/space/enterproduction', name: 'Enter Production' },
-            { state: '/space/production', name: 'Space Production' },
+            { state: '/space/production', name: 'MENU.WEB.SPACE_PRODUCTION' },
             { state: '/space/comparison', name: 'Space Comparison' }
         ]
     },
@@ -122,7 +122,7 @@ var WEB_MENU_SECTIONS = [
             { state: '/meter/offlinemetersaving', name: 'Offline Meter Saving' },
             { state: '/meter/offlinemeterplan', name: 'Offline Meter Plan' },
             { state: '/meter/offlinemeterinput', name: 'Offline Meter Input' },
-            { state: '/meter/baselinemeterinput', name: 'Baseline Meter Input' }
+            { state: '/meter/baselinemeterinput', name: 'MENU.WEB.BASELINE_METER_INPUT' }
         ]
     },
     {
@@ -202,13 +202,19 @@ var WEB_MENU_SECTIONS = [
             { state: '/carbon/supply', name: 'Supply Material Maintenance' },
             { state: '/carbon/dictionary', name: 'Product Carbon Dictionary' },
             { state: '/carbon/footprint', name: 'Product Carbon Footprint Accounting' },
-            { state: '/carbon/asset', name: 'Carbon Asset Management' }
+            { state: '/carbon/asset', name: 'MENU.WEB.CARBON_ASSET_MANAGEMENT' }
         ]
     },
     {
         groupTitle: 'Knowledge Base',
         routes: [
             { state: '/knowledgebase', name: 'Knowledge Base' }
+        ]
+    },
+    {
+        groupTitle: 'MENU.AI.ASSISTANT',
+        routes: [
+            { state: '/ai-assistant', name: 'MENU.AI.ASSISTANT' }
         ]
     }
 ];
@@ -352,10 +358,10 @@ app.controller('MenuTemplateController', function (
         const webRouteNames = $scope.getTranslatedRouteNames($scope.webMenus, data.web_routes);
         const sections = [];
         if (adminRouteNames) {
-            sections.push('Admin: ' + adminRouteNames);
+            sections.push('管理端: ' + adminRouteNames);
         }
         if (webRouteNames) {
-            sections.push('Web: ' + webRouteNames);
+            sections.push('用户端: ' + webRouteNames);
         }
         return sections.join(' | ');
     };

@@ -194,6 +194,13 @@ export const knowledgeBaseRoutes = {
   icon: 'folder'
 };
 
+export const aiAssistantRoutes = {
+  name: 'AI Assistant',
+  to: '/ai-assistant',
+  exact: true,
+  icon: 'comments'
+};
+
 const routes = [
   dashboardRoutes,
   spaceRoutes,
@@ -205,7 +212,8 @@ const routes = [
   combinedEquipmentRoutes,
   auxiliarySystemRoutes,
   productCarbonRoutes,
-  knowledgeBaseRoutes
+  knowledgeBaseRoutes,
+  aiAssistantRoutes
 ];
 
 export default routes;

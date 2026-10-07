@@ -234,6 +234,15 @@
           ENERGY_PLAN_FILE: "能源計劃 Ⓔ",
           SVG: "SVG Ⓔ",
         },
+        AI: {
+          ASSISTANT: "AI 助手",
+        },
+        WEB: {
+          EVALUATION_REPORT: "評價報告",
+          SPACE_PRODUCTION: "空間生產",
+          BASELINE_METER_INPUT: "基準表資料輸入",
+          CARBON_ASSET_MANAGEMENT: "碳資產管理",
+        },
         FDD: {
           FDD: "故障檢測與診斷 Ⓔ",
           RULE: "規則管理 Ⓔ",

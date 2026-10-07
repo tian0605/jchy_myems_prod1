@@ -152,3 +152,13 @@ is_recursive = config('IS_RECURSIVE', default=True, cast=bool)
 # indicates how long in second the user session expires
 # default value is 60 * 60 * 8 = 28800
 session_expires_in_seconds = config('SESSION_EXPIRES_IN_SECONDS', default=28800, cast=int)
+
+ai_assistant = {
+    'is_enabled': config('AI_ASSISTANT_ENABLED', default=False, cast=bool),
+    'provider': config('AI_ASSISTANT_PROVIDER', default=''),
+    'base_url': config('AI_ASSISTANT_BASE_URL', default=''),
+    'api_key': config('AI_ASSISTANT_API_KEY', default=''),
+    'default_model': config('AI_ASSISTANT_DEFAULT_MODEL', default=''),
+    'timeout_seconds': config('AI_ASSISTANT_TIMEOUT_SECONDS', default=60, cast=int),
+    'max_message_length': config('AI_ASSISTANT_MAX_MESSAGE_LENGTH', default=12000, cast=int),
+}

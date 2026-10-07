@@ -17,7 +17,7 @@
                 </div>
             </div>
             <div class="hr-line-dashed"></div>
-            <div class="form-group" ng-if="showAdminMenus()"><label class="col-sm-3 control-label">Admin Menus</label>
+            <div class="form-group" ng-if="showAdminMenus()"><label class="col-sm-3 control-label">管理端菜单</label>
                 <div class="col-sm-9 menu-template-list-scroll">
                     <div class="checkbox checkbox-success" ng-repeat="menu in adminMenus track by menu.state">
                         <input id="menu_template_admin_route_{{menu.state | lowercase | limitTo: 128}}" type="checkbox" ng-checked="isRouteSelected(menu, 'admin')" ng-click="toggleRoute(menu, 'admin')">
@@ -26,7 +26,7 @@
                 </div>
             </div>
             <div class="hr-line-dashed" ng-if="showAdminMenus() && showWebMenus()"></div>
-            <div class="form-group" ng-if="showWebMenus()"><label class="col-sm-3 control-label">Web Menus</label>
+            <div class="form-group" ng-if="showWebMenus()"><label class="col-sm-3 control-label">用户端菜单</label>
                 <div class="col-sm-9 menu-template-list-scroll">
                     <div class="checkbox checkbox-success" ng-repeat="menu in webMenus track by menu.state">
                         <input id="menu_template_web_route_{{menu.state | lowercase | limitTo: 128}}" type="checkbox" ng-checked="isRouteSelected(menu, 'web')" ng-click="toggleRoute(menu, 'web')">
