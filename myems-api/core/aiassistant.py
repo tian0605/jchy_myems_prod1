@@ -129,7 +129,8 @@ def _stream_completion(settings, messages):
         timeout=settings['timeout_seconds'],
     )
     response.raise_for_status()
-    for line in response.iter_lines(decode_unicode=True):
+    for raw_line in response.iter_lines(decode_unicode=False):
+        line = raw_line.decode('utf-8') if raw_line else ''
         if not line or not line.startswith('data:'):
             continue
         payload = line[5:].strip()
@@ -170,7 +171,8 @@ def _stream_ark_response(settings, messages):
     )
     response.raise_for_status()
     event_name = None
-    for line in response.iter_lines(decode_unicode=True):
+    for raw_line in response.iter_lines(decode_unicode=False):
+        line = raw_line.decode('utf-8') if raw_line else ''
         if not line:
             event_name = None
             continue
