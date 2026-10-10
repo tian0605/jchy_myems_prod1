@@ -119,6 +119,8 @@ import ProductCarbonFootprint from '../components/MyEMS/ProductCarbon/ProductCar
 import ProductCarbonDictionary from '../components/MyEMS/ProductCarbon/ProductCarbonDictionary';
 // Knowledge Base
 import KnowledgeBase from '../components/MyEMS/KnowledgeBase/KnowledgeBase';
+// AI Assistant
+import AIAssistant from '../components/MyEMS/AIAssistant/AIAssistant';
 // Notification
 import Notification from '../components/MyEMS/Notification/Notification';
 // FDD
@@ -129,9 +131,9 @@ import CombinedEquipments from '../components/MyEMS/Monitoring/CombinedEquipment
 // Advanced Reporting
 import AdvancedReporting from '../components/MyEMS/AdvancedReporting/AdvancedReporting';
 
-
 const MyEMSRoutes = () => (
   <Switch>
+    <Route path="/ai-assistant" exact component={AIAssistant} />
     {/*Space*/}
     <Route path="/space/energycategory" exact component={SpaceEnergyCategory} />
     <Route path="/space/energyitem" exact component={SpaceEnergyItem} />
@@ -220,7 +222,6 @@ const MyEMSRoutes = () => (
     <Route path="/store/plan" exact component={StorePlan} />
     <Route path="/store/batch" exact component={StoreBatch} />
     <Route path="/store/comparison" exact component={StoreComparison} />
-
 
     {/*Shopfloor*/}
     <Route path="/shopfloor/energycategory" exact component={ShopfloorEnergyCategory} />

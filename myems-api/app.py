@@ -10,7 +10,7 @@ from core import advancedreport, apikey, command, controlmode, energyflowdiagram
     shopfloor, webmessage, distributionsystem, store, emailmessage, tenanttype, wechatmessage, space, gateway, \
     offlinemeter, product, productcarbon, rule, energycategory, sensor, energyitem, notification, menu, datarepairfile, workingcalendar, \
     microgrid,  virtualpowerplant, energystoragecontainer, energystoragepowerstation, photovoltaicpowerstation, carbonasset, \
-    windfarm, energyplanfile, svg, protocol, ticket, iotsimcard, log, evaluationrule
+    windfarm, energyplanfile, svg, protocol, ticket, iotsimcard, log, evaluationrule, aiassistant, aimodelconfig
 
 from reports import advancedreportfile
 from reports import combinedequipmentbatch
@@ -277,6 +277,23 @@ api.add_route('/contacts',
               contact.ContactCollection())
 api.add_route('/contacts/{id_}',
               contact.ContactItem())
+
+api.add_route('/ai-assistant/conversations',
+              aiassistant.AIAssistantConversationCollection())
+api.add_route('/ai-assistant/conversations/{id_}',
+              aiassistant.AIAssistantConversationItem())
+api.add_route('/ai-assistant/conversations/{id_}/messages',
+              aiassistant.AIAssistantChat())
+api.add_route('/ai-assistant/models',
+              aiassistant.AIAssistantModelCollection())
+api.add_route('/ai-assistant/status',
+              aiassistant.AIAssistantStatus())
+api.add_route('/ai-model-configs',
+              aimodelconfig.AIModelConfigCollection())
+api.add_route('/ai-model-configs/{id_}',
+              aimodelconfig.AIModelConfigItem())
+api.add_route('/ai-model-configs/{id_}/enabled',
+              aimodelconfig.AIModelConfigEnabled())
 
 api.add_route('/products',
               product.ProductCollection())

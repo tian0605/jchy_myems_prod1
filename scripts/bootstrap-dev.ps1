@@ -56,7 +56,12 @@ if (-not $mysqlProcess) {
     '--mysqlx=0',
     "--log-error=`"$logFile`""
   ) -join ' '
-  Start-Process -FilePath $mysqldExe -ArgumentList $startArguments -WindowStyle Hidden | Out-Null
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = $mysqldExe
+  $startInfo.Arguments = $startArguments
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  [System.Diagnostics.Process]::Start($startInfo) | Out-Null
 }
 
 $maxAttempts = 60

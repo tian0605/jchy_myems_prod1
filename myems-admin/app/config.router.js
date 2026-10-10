@@ -805,6 +805,33 @@ app
                             ]
                         }
                     })
+                    .state('settings.aimodels', {
+                        url: "/ai-models",
+                        templateUrl: "views/settings/aimodel/aimodel.html",
+                        data: {
+                            pageTitle: 'MENU.SETTINGS.AI_MODEL_CONFIGURATIONS'
+                        },
+                        resolve: {
+                            deps: [
+                                '$ocLazyLoad',
+                                function($ocLazyLoad) {
+                                    return $ocLazyLoad.load(['toaster']).then(function() {
+                                        return $ocLazyLoad.load([{
+                                            files: ['js/plugins/sweetalert/sweetalert.min.js', 'css/plugins/sweetalert/sweetalert.css']
+                                        }, {
+                                            name: 'oitozero.ngSweetAlert',
+                                            files: ['js/plugins/sweetalert/angular-sweetalert.min.js']
+                                        }, {
+                                            files: [
+                                                'app/services/settings/aimodel/aimodel.service.js',
+                                                'app/controllers/settings/aimodel/aimodel.controller.js'
+                                            ]
+                                        }]);
+                                    });
+                                }
+                            ]
+                        }
+                    })
                     .state('settings.meter', {
                         url: "/meter",
                         templateUrl: "views/settings/meter/meter.html",

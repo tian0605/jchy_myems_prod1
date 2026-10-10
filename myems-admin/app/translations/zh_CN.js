@@ -232,7 +232,17 @@
           SVG_SYSTEM: "组态可视化系统 ㊭",
           ADVANCED_REPORT: "高级报表 ㊭",
           ENERGY_PLAN_FILE: "能源计划 ㊭",
+          AI_MODEL_CONFIGURATIONS: "AI 模型配置",
           SVG: "SVG",
+        },
+        AI: {
+          ASSISTANT: "AI 助手",
+        },
+        WEB: {
+          EVALUATION_REPORT: "评价报告",
+          SPACE_PRODUCTION: "空间生产",
+          BASELINE_METER_INPUT: "基准表数据录入",
+          CARBON_ASSET_MANAGEMENT: "碳资产管理",
         },
         FDD: {
           FDD: "故障检测与诊断 ㊭",
