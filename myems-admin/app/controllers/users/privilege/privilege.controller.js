@@ -155,6 +155,17 @@ app.controller('ModalAddPrivilegeCtrl', function ($scope,
 	$scope.spaces = [];
 	$scope.currentSpaceID = 1;
 	$scope.privilege = {};
+	var privilege_data = {};
+	$scope.aiCapabilities = [
+		{ id: 'ai_analysis', label: 'USER.AI_ANALYSIS' },
+		{ id: 'ai_attachment_upload', label: 'USER.AI_ATTACHMENT_UPLOAD' },
+		{ id: 'ai_cost_analysis', label: 'USER.AI_COST_ANALYSIS' }
+	];
+	$scope.aiCapabilitySelections = {
+		ai_analysis: true,
+		ai_attachment_upload: true,
+		ai_cost_analysis: false
+	};
 
 	$scope.getAllSpaces = function () {
 		let headers = { "User-UUID": $scope.cur_user.uuid, "Token": $scope.cur_user.token };
@@ -193,7 +204,14 @@ app.controller('ModalAddPrivilegeCtrl', function ($scope,
 	};
 
 	$scope.ok = function () {
-		$scope.privilege.data = JSON.stringify({"spaces": [$scope.currentSpaceID, ]});
+		var aiCapabilities = $scope.aiCapabilities.filter(function (capability) {
+			return $scope.aiCapabilitySelections[capability.id];
+		}).map(function (capability) {
+			return capability.id;
+		});
+		privilege_data.spaces = [$scope.currentSpaceID];
+		privilege_data.ai_capabilities = aiCapabilities;
+		$scope.privilege.data = JSON.stringify(privilege_data);
 		$uibModalInstance.close($scope.privilege);
 	};
 
@@ -215,6 +233,18 @@ app.controller('ModalEditPrivilegeCtrl', function ($scope,
 	$scope.spaces = [];
 	var privilege_data = JSON.parse(params.privilege.data);
 	$scope.currentSpaceID = privilege_data['spaces'][0];
+	$scope.aiCapabilities = [
+		{ id: 'ai_analysis', label: 'USER.AI_ANALYSIS' },
+		{ id: 'ai_attachment_upload', label: 'USER.AI_ATTACHMENT_UPLOAD' },
+		{ id: 'ai_cost_analysis', label: 'USER.AI_COST_ANALYSIS' }
+	];
+	var existingAiCapabilities = angular.isArray(privilege_data.ai_capabilities)
+		? privilege_data.ai_capabilities : ['ai_analysis', 'ai_attachment_upload'];
+	$scope.aiCapabilitySelections = {
+		ai_analysis: existingAiCapabilities.indexOf('ai_analysis') >= 0,
+		ai_attachment_upload: existingAiCapabilities.indexOf('ai_attachment_upload') >= 0,
+		ai_cost_analysis: existingAiCapabilities.indexOf('ai_cost_analysis') >= 0
+	};
 
 	$scope.getAllSpaces = function () {
 		let headers = { "User-UUID": $scope.cur_user.uuid, "Token": $scope.cur_user.token };
@@ -253,7 +283,14 @@ app.controller('ModalEditPrivilegeCtrl', function ($scope,
 	};
 
 	$scope.ok = function () {
-		$scope.privilege.data = JSON.stringify({"spaces": [$scope.currentSpaceID, ]});
+		var aiCapabilities = $scope.aiCapabilities.filter(function (capability) {
+			return $scope.aiCapabilitySelections[capability.id];
+		}).map(function (capability) {
+			return capability.id;
+		});
+		privilege_data.spaces = [$scope.currentSpaceID];
+		privilege_data.ai_capabilities = aiCapabilities;
+		$scope.privilege.data = JSON.stringify(privilege_data);
 		$uibModalInstance.close($scope.privilege);
 	};
 

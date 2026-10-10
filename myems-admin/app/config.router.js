@@ -832,6 +832,28 @@ app
                             ]
                         }
                     })
+                    .state('settings.aireporttemplates', {
+                        url: "/ai-report-templates",
+                        templateUrl: "views/settings/aireporttemplate/aireporttemplate.html",
+                        data: {
+                            pageTitle: 'AI Report Templates'
+                        },
+                        resolve: {
+                            deps: [
+                                '$ocLazyLoad',
+                                function($ocLazyLoad) {
+                                    return $ocLazyLoad.load(['toaster']).then(function() {
+                                        return $ocLazyLoad.load([{
+                                            files: [
+                                                'app/services/settings/aireporttemplate/aireporttemplate.service.js',
+                                                'app/controllers/settings/aireporttemplate/aireporttemplate.controller.js'
+                                            ]
+                                        }]);
+                                    });
+                                }
+                            ]
+                        }
+                    })
                     .state('settings.meter', {
                         url: "/meter",
                         templateUrl: "views/settings/meter/meter.html",

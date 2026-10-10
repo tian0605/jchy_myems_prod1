@@ -23,7 +23,7 @@ var ADMIN_MENU_SECTIONS = [
             'settings.command', 'settings.controlmode', 'settings.iotsimcard', 'settings.microgrid',
             'settings.virtualpowerplant', 'settings.energystoragecontainer', 'settings.energystoragepowerstation',
             'settings.photovoltaicpowerstation', 'settings.windfarm', 'settings.emailserver',
-            'settings.advancedreport', 'settings.energyplanfile', 'settings.aimodels'
+            'settings.advancedreport', 'settings.energyplanfile', 'settings.aimodels', 'settings.aireporttemplates'
         ]
     },
     {

@@ -31,6 +31,8 @@ except ImportError:
 
 
 VALID_MENU_TEMPLATE_TYPES = {'admin', 'web', 'hybrid'}
+AI_CAPABILITIES = {'ai_analysis', 'ai_cost_analysis', 'ai_attachment_upload'}
+DEFAULT_AI_CAPABILITIES = {'ai_analysis', 'ai_attachment_upload'}
 
 
 def _set_request_context_value(req, key, value):
@@ -68,6 +70,10 @@ def _filter_privilege_data(raw_privilege_data):
     if isinstance(spaces, list):
         filtered_data['spaces'] = [space_id for space_id in spaces
                                    if isinstance(space_id, int) and space_id > 0]
+    ai_capabilities = privilege_data.get('ai_capabilities')
+    if isinstance(ai_capabilities, list):
+        filtered_data['ai_capabilities'] = [capability for capability in ai_capabilities
+                                            if capability in AI_CAPABILITIES]
 
     return filtered_data
 
@@ -186,6 +192,17 @@ def _get_privilege_space_ids(privilege):
 
     privilege_space_ids = [space_id for space_id in spaces if isinstance(space_id, int) and space_id > 0]
     return privilege_space_ids if privilege_space_ids else None
+
+
+def _get_ai_capabilities(privilege):
+    if privilege is None:
+        return sorted(DEFAULT_AI_CAPABILITIES)
+
+    privilege_data = privilege.get('data') or dict()
+    ai_capabilities = privilege_data.get('ai_capabilities')
+    if not isinstance(ai_capabilities, list):
+        return sorted(DEFAULT_AI_CAPABILITIES)
+    return [capability for capability in ai_capabilities if capability in AI_CAPABILITIES]
 
 
 def _get_authorized_space_ids(is_admin, enterprise_space_id, privilege=None):
@@ -381,6 +398,7 @@ def get_user_permission_context(user_uuid, cursor=None):
             }
 
         authorized_space_ids = _get_authorized_space_ids(is_admin, enterprise_space_id, privilege)
+        ai_capabilities = _get_ai_capabilities(privilege)
 
         if not is_admin and enterprise_space_id is None:
             raise falcon.HTTPError(status=falcon.HTTP_400,
@@ -396,6 +414,7 @@ def get_user_permission_context(user_uuid, cursor=None):
             'menu_template_id': menu_template_id,
             'enterprise_space_id': enterprise_space_id,
             'authorized_space_ids': authorized_space_ids,
+            'ai_capabilities': ai_capabilities,
             'privilege': privilege,
             'menu_template': menu_template,
             'admin_routes': menu_template.get('data', {}).get('admin_routes') if menu_template else None,
@@ -418,6 +437,7 @@ def set_request_permission_context(req, permission_context):
     _set_request_context_value(req, 'menu_template_id', permission_context.get('menu_template_id'))
     _set_request_context_value(req, 'enterprise_space_id', permission_context.get('enterprise_space_id'))
     _set_request_context_value(req, 'authorized_space_ids', permission_context.get('authorized_space_ids'))
+    _set_request_context_value(req, 'ai_capabilities', permission_context.get('ai_capabilities'))
     _set_request_context_value(req, 'admin_routes', permission_context.get('admin_routes'))
     _set_request_context_value(req, 'web_routes', permission_context.get('web_routes'))
     _set_request_context_value(req, 'permission_context', permission_context)

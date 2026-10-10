@@ -6,6 +6,197 @@
 DROP DATABASE IF EXISTS `myems_system_db` ;
 CREATE DATABASE IF NOT EXISTS `myems_system_db` CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_unicode_ci' ;
 
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_assistant_conversations`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_conversations` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `enterprise_space_id` BIGINT NOT NULL,
+  `title` VARCHAR(128) NOT NULL,
+  `is_deleted` BOOL NOT NULL DEFAULT FALSE,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `tbl_ai_assistant_conversations_index_1` (`user_id`, `enterprise_space_id`, `is_deleted`, `updated_datetime_utc`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_assistant_messages`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_messages` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `conversation_id` BIGINT NOT NULL,
+  `role` VARCHAR(16) NOT NULL,
+  `content` LONGTEXT NOT NULL,
+  `model_name` VARCHAR(128) NULL,
+  `use_system_data` BOOL NOT NULL DEFAULT FALSE,
+  `report_version_id` BIGINT NULL,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `tbl_ai_assistant_messages_index_1` (`conversation_id`, `id`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_assistant_audits`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_audits` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `conversation_id` BIGINT NULL,
+  `user_id` BIGINT NOT NULL,
+  `enterprise_space_id` BIGINT NOT NULL,
+  `provider` VARCHAR(64) NOT NULL,
+  `model_name` VARCHAR(128) NULL,
+  `report_mode` VARCHAR(32) NULL,
+  `status` VARCHAR(32) NOT NULL,
+  `error_code` VARCHAR(128) NULL,
+  `duration_ms` BIGINT NULL,
+  `data_sources_json` LONGTEXT NULL,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `tbl_ai_assistant_audits_index_1` (`enterprise_space_id`, `user_id`, `created_datetime_utc`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_assistant_attachments`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_attachments` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `conversation_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `enterprise_space_id` BIGINT NOT NULL,
+  `original_filename` VARCHAR(255) NOT NULL,
+  `storage_filename` CHAR(36) NOT NULL,
+  `mime_type` VARCHAR(128) NOT NULL,
+  `file_size` BIGINT NOT NULL,
+  `sha256` CHAR(64) NOT NULL,
+  `extraction_status` VARCHAR(32) NOT NULL DEFAULT 'pending',
+  `extraction_error` VARCHAR(255) NULL,
+  `extracted_text` LONGTEXT NULL,
+  `is_deleted` BOOL NOT NULL DEFAULT FALSE,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `tbl_ai_assistant_attachments_index_1` (`storage_filename`),
+  INDEX `tbl_ai_assistant_attachments_index_2` (`conversation_id`, `is_deleted`, `id`),
+  INDEX `tbl_ai_assistant_attachments_index_3` (`user_id`, `enterprise_space_id`, `is_deleted`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_assistant_report_versions`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_report_versions` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `conversation_id` BIGINT NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `enterprise_space_id` BIGINT NOT NULL,
+  `report_type` VARCHAR(64) NOT NULL,
+  `report_mode` VARCHAR(32) NOT NULL,
+  `template_version_id` BIGINT NULL,
+  `parent_report_version_id` BIGINT NULL,
+  `content` LONGTEXT NOT NULL,
+  `data_sources_json` LONGTEXT NULL,
+  `report_context_json` LONGTEXT NULL,
+  `is_deleted` BOOL NOT NULL DEFAULT FALSE,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `tbl_ai_assistant_report_versions_index_1` (`conversation_id`, `is_deleted`, `id`),
+  INDEX `tbl_ai_assistant_report_versions_index_2` (`user_id`, `enterprise_space_id`, `is_deleted`),
+  INDEX `tbl_ai_assistant_report_versions_index_3` (`conversation_id`, `parent_report_version_id`, `id`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_assistant_message_attachments`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_message_attachments` (
+  `message_id` BIGINT NOT NULL,
+  `attachment_id` BIGINT NOT NULL,
+  PRIMARY KEY (`message_id`, `attachment_id`),
+  INDEX `tbl_ai_assistant_message_attachments_index_1` (`attachment_id`, `message_id`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_model_configs`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_model_configs` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(128) NOT NULL,
+  `provider` VARCHAR(64) NOT NULL,
+  `base_url` VARCHAR(512) NOT NULL,
+  `model_name` VARCHAR(128) NOT NULL,
+  `api_key_env_name` VARCHAR(128) NULL,
+  `api_key_ciphertext` TEXT NULL,
+  `is_enabled` BOOL NOT NULL DEFAULT FALSE,
+  `is_default` BOOL NOT NULL DEFAULT FALSE,
+  `timeout_seconds` INT NOT NULL DEFAULT 60,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `tbl_ai_model_configs_index_1` (`name`),
+  INDEX `tbl_ai_model_configs_index_2` (`is_enabled`, `is_default`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_report_templates`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_report_templates` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `report_type` VARCHAR(64) NOT NULL,
+  `report_mode` VARCHAR(32) NOT NULL,
+  `current_published_version_id` BIGINT NULL,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'draft',
+  `is_deleted` BOOL NOT NULL DEFAULT FALSE,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `tbl_ai_report_templates_index_1` (`report_type`, `report_mode`),
+  INDEX `tbl_ai_report_templates_index_2` (`status`, `is_deleted`, `id`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_report_template_versions`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_report_template_versions` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `template_id` BIGINT NOT NULL,
+  `version_number` INT NOT NULL,
+  `prompt_content` LONGTEXT NOT NULL,
+  `variables_json` VARCHAR(1024) NOT NULL,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'draft',
+  `created_by_user_id` BIGINT NULL,
+  `created_datetime_utc` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `tbl_ai_report_template_versions_index_1` (`template_id`, `version_number`),
+  INDEX `tbl_ai_report_template_versions_index_2` (`template_id`, `status`, `id`)
+);
+
+INSERT INTO `myems_system_db`.`tbl_ai_report_templates`
+  (`name`, `report_type`, `report_mode`, `status`)
+VALUES
+  ('温室气体排放核查报告（真实数据）', 'ghg_emissions', 'real_data', 'published'),
+  ('温室气体排放核查报告（估算草稿）', 'ghg_emissions', 'estimate_draft', 'published'),
+  ('产品碳足迹报告（真实数据）', 'product_carbon_footprint', 'real_data', 'published'),
+  ('产品碳足迹报告（估算草稿）', 'product_carbon_footprint', 'estimate_draft', 'published');
+
+INSERT INTO `myems_system_db`.`tbl_ai_report_template_versions`
+  (`template_id`, `version_number`, `prompt_content`, `variables_json`, `status`)
+SELECT `id`, 1,
+  CASE `report_type`
+    WHEN 'ghg_emissions' THEN
+      '你是一位资深第三方温室气体核查机构技术专家，严格依据 GB/T 32150-2025、GB/T 46907-2025 及适用行业方法学，编制正式、客观、专业的工业企业温室气体排放核查报告。仅使用下方授权上下文和数据快照；数据缺失时明确标注“待补充”或“无法核实”，不得编造。\n\n报告必须依次包含：封面（企业名称、报告标题、核查机构、年度、编制日期）；报告主体基本信息总表（工厂基本信息、排放量汇总、符合性及第三方核查声明）；目录；一、核查概述（目的、范围、组织过程、核查方法、依据）；二、企业基本情况（概况、产量产值、工艺、耗能设备）；三、温室气体排放情况（能源使用、排放源完整性、排放量及占比）；四、活动水平数据及来源；五、排放因子及来源；六、核查过程和总排放量结果；七、文件核查和至少三条针对性建议；八、附件（四张标准附表及营业执照、平面图、组织架构、工艺流程、台账、计量器具、发票/现场照片、依据文件、核查声明的占位或可用数据）。\n\n采用公式 E_GHG = E_购入电 + E_购入热；E_购入电 = AD_购入电 × EF_电；E_购入热 = AD_购入热 × EF_热。每个公式应编号，逐项解释符号和单位。电力统一使用 MWh，热力统一使用 GJ，排放量统一使用 tCO2e；如输入为吨蒸汽，说明换算系数和依据。所有表格按“表 章节号-序号”编号，封面、第三章、第六章和附表的数值必须一致。排放因子必须记录来源和发布日期；必要时纳入化石燃料燃烧、工业过程和逸散排放。每页页眉、页码、流程图等无法从数据生成的内容应使用明确占位符。\n\n【授权报告上下文】\n{{report_context}}\n\n【授权数据快照】\n{{data_context}}'
+    ELSE
+      '你是一位资深产品碳足迹和生命周期评价专家，严格依据 GB/T 24067-2024、GB/T 24040-2008、GB/T 32161-2015，并采用 CML 2001 的 GWP 100 年评价方法，编制完整、正式、客观的产品碳足迹报告。仅使用下方授权上下文和数据快照；数据缺失时明确标注“待补充”或“无法核实”，不得编造。\n\n报告必须依次包含：封面（产品名称、规格、企业、发布日期、有效期）；目录；引言（标准依据和目的）；一、公司简介（企业基本信息表和简介）；二、产品描述（产品简介、工艺流程图占位、逐工序说明）；三、功能单位；四、产品 LCA 系统边界（边界说明、边界图占位、各生命周期阶段 Y/N 表）；五、取舍原则；六、产品生命周期清单（6.1 原材料获取，6.2 生产阶段，6.3 销售运输）；七、产品碳足迹计算方法；八、产品生命周期评价分析；九、数据来源及计算工具。\n\n采用公式 EP_GWP = Σ(GWP_i × m_i)，并给出参数、单位和公式编号；阶段核算使用 E_raw、E_prod、E_trans 和 E_total = E_raw + E_prod + E_trans，以功能单位归一化。原材料使用 kg，电力使用 kWh，热力/蒸汽使用 GJ，运输使用 km，结果使用 kgCO2 eq.。分别呈现原材料、生产和销售运输清单，列明排放因子、来源、发布日期和适用性；计算全生命周期结果、各阶段占比、主要贡献阶段及有针对性的减排建议。所有表格按章节顺序编号，章节间数值、单位和边界必须可交叉验证。生产工艺流程图和系统边界图无法生成时使用明确占位符。\n\n【授权报告上下文】\n{{report_context}}\n\n【授权数据快照】\n{{data_context}}'
+  END,
+  '["report_context", "data_context"]', 'published'
+FROM `myems_system_db`.`tbl_ai_report_templates`;
+
+UPDATE `myems_system_db`.`tbl_ai_report_templates` AS templates
+JOIN `myems_system_db`.`tbl_ai_report_template_versions` AS versions
+  ON versions.template_id = templates.id AND versions.version_number = 1
+SET templates.current_published_version_id = versions.id;
+
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Table `myems_system_db`.`tbl_charging_stations`
@@ -1063,7 +1254,10 @@ VALUES
 (1303,'Product Carbon Dictionary','/carbon/dictionary',1300,0),
 (1304,'Carbon Asset Management','/carbon/asset',1300,0),
 (1302,'Product Carbon Footprint Accounting','/carbon/footprint',1300,0),
-(1200,'Knowledge Base','/knowledgebase',NULL,0);
+(1200,'Knowledge Base','/knowledgebase',NULL,0),
+(1500,'AI Assistant','/ai-assistant',NULL,0),
+(1501,'AI Model Configurations','settings.aimodels',0,0),
+(1502,'AI Report Templates','settings.aireporttemplates',0,0);
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Table `myems_system_db`.`tbl_meters`
@@ -2769,7 +2963,7 @@ CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_versions` (
 INSERT INTO `myems_system_db`.`tbl_versions`
 (`id`, `version`, `release_date`)
 VALUES
-(1, '6.3.0', '2026-03-28');
+(1, '6.3.19', '2026-10-10');
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Table `myems_system_db`.`tbl_wind_farms`

@@ -1,0 +1,14 @@
+<div class="inmodal">
+    <div class="modal-header"><h4 class="modal-title">{{template.id ? '编辑 AI 报告模板草稿' : '添加 AI 报告模板'}}</h4></div>
+    <div class="modal-body">
+        <form name="form_ai_report_template" novalidate class="form-horizontal">
+            <div class="form-group"><label class="col-sm-3 control-label">名称 *</label><div class="col-sm-9"><input ng-model="template.name" class="form-control" ng-disabled="template.id" required></div></div>
+            <div class="form-group"><label class="col-sm-3 control-label">报告类型 *</label><div class="col-sm-9"><select ng-model="template.report_type" class="form-control" ng-disabled="template.id" required><option value="ghg_emissions">温室气体排放</option><option value="product_carbon_footprint">产品碳足迹</option></select></div></div>
+            <div class="form-group"><label class="col-sm-3 control-label">生成模式 *</label><div class="col-sm-9"><select ng-model="template.report_mode" class="form-control" ng-disabled="template.id" required><option value="real_data">真实数据</option><option value="estimate_draft">估算草稿</option></select></div></div>
+            <div class="form-group"><label class="col-sm-3 control-label">提示词正文 *</label><div class="col-sm-9"><textarea ng-model="template.prompt_content" rows="14" class="form-control" required></textarea><span class="help-block" ng-non-bindable>允许变量：{{report_context}}、{{data_context}}。保存将创建新的草稿版本，不会改写已发布版本。</span></div></div>
+            <div class="form-group" ng-if="template.id"><label class="col-sm-3 control-label">历史版本</label><div class="col-sm-9"><div class="well well-sm" ng-repeat="version in versions">v{{version.version_number}} · {{version.status}} · {{version.created_datetime_utc | date:'yyyy-MM-dd HH:mm'}}</div></div></div>
+            <div class="form-group" ng-if="template.id"><label class="col-sm-3 control-label">样例预览</label><div class="col-sm-9"><button type="button" class="btn btn-default btn-sm" ng-click="preview()">生成样例预览</button><pre class="m-t-sm" ng-if="previewResult">{{previewResult.prompt_content}}</pre></div></div>
+        </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-white" ng-click="cancel()">取消</button><button class="btn btn-default" ng-disabled="form_ai_report_template.$invalid" ng-click="save(false)">保存草稿</button><button class="btn btn-primary" ng-disabled="form_ai_report_template.$invalid" ng-click="save(true)">保存并发布</button></div>
+</div>

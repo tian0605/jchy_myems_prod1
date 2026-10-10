@@ -161,4 +161,12 @@ ai_assistant = {
     'default_model': config('AI_ASSISTANT_DEFAULT_MODEL', default=''),
     'timeout_seconds': config('AI_ASSISTANT_TIMEOUT_SECONDS', default=60, cast=int),
     'max_message_length': config('AI_ASSISTANT_MAX_MESSAGE_LENGTH', default=12000, cast=int),
+    'attachment_path': config('AI_ASSISTANT_ATTACHMENT_PATH', default='/var/lib/myems/ai-assistant'),
+    'max_attachment_bytes': config('AI_ASSISTANT_MAX_ATTACHMENT_BYTES', default=10485760, cast=int),
+    'max_attachment_archive_bytes': config('AI_ASSISTANT_MAX_ATTACHMENT_ARCHIVE_BYTES', default=31457280,
+                                           cast=int),
+    'max_attachment_pages': config('AI_ASSISTANT_MAX_ATTACHMENT_PAGES', default=100, cast=int),
+    'max_attachment_text_length': config('AI_ASSISTANT_MAX_ATTACHMENT_TEXT_LENGTH', default=30000, cast=int),
+    'max_attachments_per_message': config('AI_ASSISTANT_MAX_ATTACHMENTS_PER_MESSAGE', default=5, cast=int),
+    'max_attachment_context_length': config('AI_ASSISTANT_MAX_ATTACHMENT_CONTEXT_LENGTH', default=60000, cast=int),
 }
