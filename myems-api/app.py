@@ -11,7 +11,7 @@ from core import advancedreport, apikey, command, controlmode, energyflowdiagram
     shopfloor, webmessage, distributionsystem, store, emailmessage, tenanttype, wechatmessage, space, gateway, \
     offlinemeter, product, productcarbon, rule, energycategory, sensor, energyitem, notification, menu, datarepairfile, workingcalendar, \
     microgrid,  virtualpowerplant, energystoragecontainer, energystoragepowerstation, photovoltaicpowerstation, carbonasset, \
-    windfarm, energyplanfile, svg, protocol, ticket, iotsimcard, log, evaluationrule, aiassistant, aimodelconfig
+    windfarm, energyplanfile, svg, protocol, ticket, iotsimcard, log, evaluationrule, aiassistant, aimodelconfig, aireporttemplate
 
 from reports import advancedreportfile
 from reports import combinedequipmentbatch
@@ -284,6 +284,18 @@ api.add_route('/ai-assistant/conversations/{id_}',
               aiassistant.AIAssistantConversationItem())
 api.add_route('/ai-assistant/conversations/{id_}/messages',
               aiassistant.AIAssistantChat())
+api.add_route('/ai-assistant/conversations/{id_}/report-versions',
+              aiassistant.AIAssistantReportVersionCollection())
+api.add_route('/ai-assistant/conversations/{id_}/report-versions/{report_version_id}/download',
+              aiassistant.AIAssistantReportVersionDownload())
+api.add_route('/ai-assistant/conversations/{id_}/attachments',
+              aiassistant.AIAssistantAttachmentCollection())
+api.add_route('/ai-assistant/conversations/{id_}/attachments/{attachment_id}',
+              aiassistant.AIAssistantAttachmentItem())
+api.add_route('/ai-assistant/conversations/{id_}/attachments/{attachment_id}/download',
+              aiassistant.AIAssistantAttachmentDownload())
+api.add_route('/ai-assistant/report-inputs',
+              aiassistant.AIAssistantReportInputCollection())
 api.add_route('/ai-assistant/models',
               aiassistant.AIAssistantModelCollection())
 api.add_route('/ai-assistant/status',
@@ -294,6 +306,14 @@ api.add_route('/ai-model-configs/{id_}',
               aimodelconfig.AIModelConfigItem())
 api.add_route('/ai-model-configs/{id_}/enabled',
               aimodelconfig.AIModelConfigEnabled())
+api.add_route('/ai-report-templates',
+              aireporttemplate.AIReportTemplateCollection())
+api.add_route('/ai-report-templates/{id_}',
+              aireporttemplate.AIReportTemplateItem())
+api.add_route('/ai-report-templates/{id_}/preview',
+              aireporttemplate.AIReportTemplatePreview())
+api.add_route('/ai-report-templates/{id_}/publish',
+              aireporttemplate.AIReportTemplatePublish())
 
 api.add_route('/products',
               product.ProductCollection())

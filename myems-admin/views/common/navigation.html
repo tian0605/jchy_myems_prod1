@@ -47,7 +47,7 @@
                     <li ui-sref-active="active" ng-if="canAccessAdminRoute('users.log')"><a ui-sref="users.log">{{ 'MENU.USERSETTING.LOG' | translate }}</a></li>
                 </ul>
             </li>
-            <li ng-class="{active: $state.includes('settings')}" ng-if="canAccessAnyAdminRoute(['settings.command','settings.evaluationrule','settings.controlmode','settings.iotsimcard','settings.microgrid','settings.virtualpowerplant','settings.energystoragecontainer','settings.energystoragepowerstation','settings.photovoltaicpowerstation','settings.windfarm','settings.emailserver','settings.advancedreport','settings.energyplanfile','settings.aimodels'])">
+            <li ng-class="{active: $state.includes('settings')}" ng-if="canAccessAnyAdminRoute(['settings.command','settings.evaluationrule','settings.controlmode','settings.iotsimcard','settings.microgrid','settings.virtualpowerplant','settings.energystoragecontainer','settings.energystoragepowerstation','settings.photovoltaicpowerstation','settings.windfarm','settings.emailserver','settings.advancedreport','settings.energyplanfile','settings.aimodels','settings.aireporttemplates'])">
                 <a href=""><i class="fa fa-gears"></i> <span class="nav-label">{{ 'MENU.SETTINGS.ADVANCED' | translate }}</span>  <span class="fa arrow"></span></a>
                 <ul class="nav nav-second-level collapse" ng-class="{in: $state.includes('settings')}">
                     <li ui-sref-active="active" ng-if="canAccessAdminRoute('settings.command')"><a ui-sref="settings.command">{{ 'MENU.SETTINGS.COMMAND' | translate }}</a></li>
@@ -64,6 +64,7 @@
                     <li ui-sref-active="active" ng-if="canAccessAdminRoute('settings.advancedreport')"><a ui-sref="settings.advancedreport">{{ 'MENU.SETTINGS.ADVANCED_REPORT' | translate }}</a></li>
                     <li ui-sref-active="active" ng-if="canAccessAdminRoute('settings.energyplanfile')"><a ui-sref="settings.energyplanfile">{{ 'MENU.SETTINGS.ENERGY_PLAN_FILE' | translate }}</a></li>
                     <li ui-sref-active="active" ng-if="canAccessAdminRoute('settings.aimodels')"><a ui-sref="settings.aimodels">{{ 'MENU.SETTINGS.AI_MODEL_CONFIGURATIONS' | translate }}</a></li>
+                    <li ui-sref-active="active" ng-if="canAccessAdminRoute('settings.aireporttemplates')"><a ui-sref="settings.aireporttemplates">AI 报告模板</a></li>
                 </ul>
             </li>
             <li ng-class="{active: $state.includes('fdd')}" ng-if="canAccessAnyAdminRoute(['fdd.rule','fdd.textmessage','fdd.emailmessage','fdd.webmessage','fdd.wechatmessage'])">

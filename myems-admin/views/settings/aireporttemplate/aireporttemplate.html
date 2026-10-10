@@ -1,0 +1,28 @@
+<div class="wrapper wrapper-content" ng-controller="AIReportTemplateController">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title"><h5>AI 报告模板</h5></div>
+                <div class="ibox-content">
+                    <p class="text-muted">模板按报告类型和生成模式自动匹配。固定的数据授权、真实数据和估算模式规则由服务端追加，不能通过模板修改。</p>
+                    <button class="btn btn-primary btn-rounded btn-outline m-b-md" ng-click="openTemplate()"><i class="fa fa-plus-circle"></i> 添加模板</button>
+                    <table class="table table-bordered table-hover">
+                        <thead><tr><th>ID</th><th>名称</th><th>报告类型</th><th>生成模式</th><th>状态</th><th>已发布版本</th><th>更新时间</th><th>操作</th></tr></thead>
+                        <tbody>
+                            <tr ng-repeat="template in templates">
+                                <td>{{template.id}}</td>
+                                <td>{{template.name}}</td>
+                                <td>{{template.report_type === 'ghg_emissions' ? '温室气体排放' : '产品碳足迹'}}</td>
+                                <td>{{template.report_mode === 'real_data' ? '真实数据' : '估算草稿'}}</td>
+                                <td><span class="label" ng-class="template.status === 'published' ? 'label-primary' : 'label-default'">{{template.status === 'published' ? '已发布' : template.status}}</span></td>
+                                <td>v{{template.current_published_version_number || '-'}}</td>
+                                <td>{{template.updated_datetime_utc | date:'yyyy-MM-dd HH:mm'}}</td>
+                                <td><button class="btn btn-primary btn-rounded btn-xs" ng-click="openTemplate(template)">编辑与版本</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
