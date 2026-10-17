@@ -1,0 +1,14 @@
+ARG NGINX_IMAGE=nginx:stable-alpine
+FROM ${NGINX_IMAGE}
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
+WORKDIR /var/www/myems-admin
+COPY app ./app
+COPY css ./css
+COPY font-awesome ./font-awesome
+COPY fonts ./fonts
+COPY img ./img
+COPY js ./js
+COPY views ./views
+COPY index.html favicon.ico ./
+EXPOSE 8001

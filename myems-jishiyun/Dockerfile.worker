@@ -1,0 +1,16 @@
+ARG PYTHON_IMAGE=python:3.10-slim
+FROM ${PYTHON_IMAGE}
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY requirements.txt ./
+ARG PIP_INDEX_URL=https://pypi.org/simple
+RUN pip install --no-cache-dir --timeout 120 --index-url "$PIP_INDEX_URL" -r requirements.txt
+COPY pyproject.toml ./
+COPY myems_jishiyun ./myems_jishiyun
+RUN pip install --no-cache-dir --no-build-isolation --no-deps .
+COPY health.py worker.py ./
+USER 10001:10001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["python", "health.py"]
+ENTRYPOINT ["python", "worker.py"]
+CMD ["--help"]

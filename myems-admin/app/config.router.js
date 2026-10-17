@@ -794,6 +794,7 @@ app
                                                     'app/controllers/settings/datasource/datarepairfile.controller.js',
                                                     'app/controllers/settings/datasource/datasource.master.controller.js',
                                                     'app/controllers/settings/datasource/datasource.controller.js',
+                                                    'app/controllers/settings/datasource/acquisition.controller.js',
                                                     'app/controllers/settings/datasource/point.controller.js',
                                                     'app/controllers/common/export.controller.js',
                                                     'app/controllers/common/import.controller.js'

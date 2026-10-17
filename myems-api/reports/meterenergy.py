@@ -43,6 +43,7 @@ import config
 import excelexporters.meterenergy
 from core import utilities
 from core.useractivity import access_control, api_key_control
+from reports.metercache import meter_report_cache_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +203,7 @@ class Reporting:
         cache_key = None
         cache_expire = 1800  # 30 minutes
         redis_client = None
-        if config.redis.get('is_enabled'):
+        if config.redis.get('is_enabled') and meter_report_cache_allowed(meter_id, meter_uuid):
             try:
                 redis_client = redis.Redis(
                     host=config.redis['host'],

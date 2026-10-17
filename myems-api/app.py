@@ -1,4 +1,5 @@
 import falcon
+from core import jishiyun
 from falcon_cors import CORS
 from falcon_multipart.middleware import MultipartMiddleware
 # for debugging this api on Linux or macOS
@@ -396,6 +397,20 @@ api.add_route('/datasources/import',
               datasource.DataSourceImport())
 api.add_route('/datasources/{id_}/clone',
               datasource.DataSourceClone())
+api.add_route('/datasources/{id_}/acquisition/{collection}', jishiyun.Workbench())
+api.add_route('/datasources/{id_}/acquisition/runs/{run_id}/items', jishiyun.RunItems())
+api.add_route('/datasources/{id_}/acquisition/{collection}/{item_id}/control', jishiyun.Control())
+api.add_route('/datasources/{id_}/acquisition/tasks/{item_id}', jishiyun.TaskConfiguration())
+api.add_route('/datasources/{id_}/acquisition/mappings/{item_id}', jishiyun.MappingConfiguration())
+api.add_route('/datasources/{id_}/acquisition/mappings/{item_id}/raw-collection', jishiyun.MappingCollection())
+api.add_route('/datasources/{id_}/acquisition/mapping-batch', jishiyun.MappingBatch())
+api.add_route('/datasources/{id_}/acquisition/backfill', jishiyun.BackfillSubmit())
+api.add_route('/datasources/{id_}/acquisition/batches/{item_id}', jishiyun.BackfillDetail())
+api.add_route('/datasources/{id_}/acquisition/batches/{item_id}/{operation}', jishiyun.BackfillControl())
+api.add_route('/datasources/{id_}/acquisition/initialization', jishiyun.InitializationFetch())
+api.add_route('/datasources/{id_}/acquisition/initialization/{run_id}', jishiyun.InitializationPreview())
+api.add_route('/datasources/{id_}/acquisition/initialization/{run_id}/approve', jishiyun.InitializationApproval())
+api.add_route('/datasources/{id_}/acquisition/initialization/{run_id}/submit', jishiyun.InitializationSubmit())
 
 
 api.add_route('/distributioncircuits',

@@ -1,0 +1,163 @@
+name: myems-jishiyun-local
+
+x-database: &database
+  MYEMS_SYSTEM_DB_HOST: db
+  MYEMS_SYSTEM_DB_PASSWORD: ${LOCAL_DB_PASSWORD:?Generate the ignored local environment first}
+  MYEMS_USER_DB_HOST: db
+  MYEMS_USER_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_HISTORICAL_DB_HOST: db
+  MYEMS_HISTORICAL_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_ENERGY_DB_HOST: db
+  MYEMS_ENERGY_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_BILLING_DB_HOST: db
+  MYEMS_BILLING_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_CARBON_DB_HOST: db
+  MYEMS_CARBON_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_ENERGY_BASELINE_DB_HOST: db
+  MYEMS_ENERGY_BASELINE_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_ENERGY_PLAN_DB_HOST: db
+  MYEMS_ENERGY_PLAN_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_ENERGY_PREDICTION_DB_HOST: db
+  MYEMS_ENERGY_PREDICTION_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_FDD_DB_HOST: db
+  MYEMS_FDD_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_REPORTING_DB_HOST: db
+  MYEMS_REPORTING_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  MYEMS_PRODUCTION_DB_HOST: db
+  MYEMS_PRODUCTION_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+  IS_REDIS_ENABLED: "True"
+  REDIS_HOST: redis
+
+services:
+  db:
+    image: ${LOCAL_MYSQL_IMAGE:-mysql:8.4}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${LOCAL_DB_PASSWORD}
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - jishiyun-db:/var/lib/mysql
+      - ../database/install:/schema:ro
+      - ./jishiyun-local/init-db.sql:/docker-entrypoint-initdb.d/00-local.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysql -uroot -h127.0.0.1 -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  redis:
+    image: ${LOCAL_REDIS_IMAGE:-redis:7-alpine}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: others/jishiyun-local/Dockerfile.api
+      args:
+        PYTHON_IMAGE: ${LOCAL_PYTHON_IMAGE:-python:3.10-slim}
+        PIP_INDEX_URL: ${LOCAL_PIP_INDEX_URL:-https://pypi.org/simple}
+    environment:
+      <<: *database
+      LOCAL_ADMIN_PASSWORD: ${LOCAL_ADMIN_PASSWORD:?Generate the ignored local environment first}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/version', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  admin:
+    build:
+      context: ../myems-admin
+      dockerfile: ../others/jishiyun-local/Dockerfile.admin
+      args:
+        NGINX_IMAGE: ${LOCAL_NGINX_IMAGE:-nginx:stable-alpine}
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8001/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mock:
+    build:
+      context: ../myems-jishiyun
+      dockerfile: Dockerfile.worker
+      args:
+        PYTHON_IMAGE: ${LOCAL_PYTHON_IMAGE:-python:3.10-slim}
+        PIP_INDEX_URL: ${LOCAL_PIP_INDEX_URL:-https://pypi.org/simple}
+    entrypoint: ["python", "/acceptance/mock.py"]
+    volumes:
+      - ./jishiyun-local:/acceptance:ro
+    environment:
+      LOCAL_MOCK_KEY: ${LOCAL_MOCK_KEY:?Generate the ignored local environment first}
+      SSL_CERT_FILE: /acceptance/state/mock.crt
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://mock:8443/health',timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    profiles: ["acceptance"]
+
+  worker:
+    build:
+      context: ../myems-jishiyun
+      dockerfile: Dockerfile.worker
+      args:
+        PYTHON_IMAGE: ${LOCAL_PYTHON_IMAGE:-python:3.10-slim}
+        PIP_INDEX_URL: ${LOCAL_PIP_INDEX_URL:-https://pypi.org/simple}
+    environment: &worker_environment
+      JISHIYUN_DB_HOST: db
+      PYTHONPATH: /app
+      JISHIYUN_DB_USER: root
+      JISHIYUN_DB_PASSWORD: ${LOCAL_DB_PASSWORD}
+      JISHIYUN_DATA_SOURCE_ID: "1"
+      JISHIYUN_API_KEY: ${LOCAL_MOCK_KEY}
+      JISHIYUN_BASE_URL: https://mock:8443/WebApi
+      SSL_CERT_FILE: /acceptance/state/mock.crt
+    volumes:
+      - ./jishiyun-local:/acceptance:ro
+    command: ["run", "--health-file", "/tmp/jishiyun-worker-health.json"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      db:
+        condition: service_healthy
+      mock:
+        condition: service_healthy
+    profiles: ["acceptance"]
+
+  checks:
+    image: myems-jishiyun-local-worker:latest
+    user: "0:0"
+    entrypoint: ["python"]
+    environment: *worker_environment
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1m,mode=1777
+    volumes:
+      - ./jishiyun-local:/acceptance:ro
+      - ./jishiyun-local/state:/acceptance/state:rw
+    profiles: ["acceptance"]
+
+volumes:
+  jishiyun-db:

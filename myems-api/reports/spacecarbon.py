@@ -40,6 +40,7 @@ import mysql.connector
 import redis
 import simplejson as json
 import config
+from reports.metercache import space_report_cache_allowed
 import excelexporters.spacecarbon
 from core import utilities
 from core.useractivity import access_control, api_key_control
@@ -222,7 +223,7 @@ class Reporting:
         cache_key = None
         cache_expire = 1800  # 30 minutes
         redis_client = None
-        if config.redis.get('is_enabled'):
+        if config.redis.get('is_enabled') and space_report_cache_allowed(space_id, space_uuid):
             try:
                 redis_client = redis.Redis(
                     host=config.redis['host'],

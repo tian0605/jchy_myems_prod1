@@ -78,7 +78,8 @@ jobs:
       matrix:
         include:
           - image_name: api
-            context: ./myems-api
+            context: .
+            dockerfile: ./myems-api/Dockerfile
           - image_name: aggregation
             context: ./myems-aggregation
           - image_name: cleaning
@@ -128,6 +129,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile || format('{0}/Dockerfile', matrix.context) }}
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           provenance: false

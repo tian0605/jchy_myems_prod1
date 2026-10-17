@@ -1,0 +1,10 @@
+.git
+.venv
+**/.env
+**/.env.*
+**/__pycache__
+**/*.egg-info
+**/node_modules
+others/jishiyun-local/state
+myems-api/upload
+myems-admin/upload

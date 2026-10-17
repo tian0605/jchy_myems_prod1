@@ -81,9 +81,12 @@ def main(logger):
         # Retrieve all meters with their energy category and cost center information
         meter_list = list()
         try:
-            cursor_system_db.execute(" SELECT id, name, energy_category_id, cost_center_id "
-                                     " FROM tbl_meters "
-                                     " ORDER BY id ")
+            cursor_system_db.execute(" SELECT m.id, m.name, m.energy_category_id, m.cost_center_id "
+                                     " FROM tbl_meters m "
+                                     " WHERE NOT EXISTS (SELECT 1 FROM tbl_meters_points mp "
+                                     " JOIN tbl_points p ON p.id=mp.point_id "
+                                     " WHERE mp.meter_id=m.id AND p.object_type='JISHIYUN_REGISTER') "
+                                     " ORDER BY m.id ")
             rows_meters = cursor_system_db.fetchall()
 
             # Check if meters were found

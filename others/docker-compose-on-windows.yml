@@ -1,7 +1,9 @@
 version: '3.8'
 services:
   api:
-    build: ../myems-api
+    build:
+      context: ..
+      dockerfile: myems-api/Dockerfile
     command: gunicorn app:api -b 0.0.0.0:8000 --timeout 600 --workers=4
     volumes:
       - c:\myems-upload:/var/www/myems-admin/upload

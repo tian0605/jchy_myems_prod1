@@ -578,6 +578,9 @@ class DataSourcePointCollection:
                 elif row[2] == 'TEXT_VALUE':
                     latest_value = text_value_dict.get(row[0], None)
                     latest_value = str(latest_value) if latest_value is not None else None
+                elif row[2] == 'JISHIYUN_REGISTER':
+                    # Pending registers have no normalized business latest value.
+                    latest_value = None
 
                 meta_result = {"id": row[0],
                                "name": row[1],

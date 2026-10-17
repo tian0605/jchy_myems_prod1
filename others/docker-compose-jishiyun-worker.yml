@@ -1,0 +1,16 @@
+services:
+  jishiyun_worker:
+    build:
+      context: ../myems-jishiyun
+      dockerfile: Dockerfile.worker
+    env_file:
+      - ../myems-jishiyun/.env
+    command: ["run", "--health-file", "/tmp/jishiyun-worker-health.json"]
+    restart: on-failure
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

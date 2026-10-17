@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myems-jishiyun"
+version = "0.1.0"
+description = "Shared MyEMS Jishiyun acquisition transactions and worker"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["myems_jishiyun"]

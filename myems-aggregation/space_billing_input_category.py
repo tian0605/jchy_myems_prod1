@@ -112,6 +112,7 @@ def main(logger):
         try:
             cursor_system_db.execute(" SELECT id, name, cost_center_id "
                                      " FROM tbl_spaces "
+                                     " WHERE COALESCE(description,'') NOT LIKE 'JISHIYUN_PILOT_SOURCE:%' "
                                      " ORDER BY id ")
             rows_spaces = cursor_system_db.fetchall()
 
