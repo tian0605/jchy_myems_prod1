@@ -5,13 +5,15 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档名称 | MyEMS 生产运维与发布手册 |
-| 文档版本 | v1.3 |
-| 生效日期 | 2026-05-08 |
+| 文档版本 | v1.4 |
+| 生效日期 | 2026-10-18 |
 | 适用系统 | MyEMS Docker Compose 生产环境 |
 | 适用目录 | `/home/ubuntu/myems-complete` |
 | 运维入口目录 | `/home/ubuntu/myems-complete/others` |
 | 维护责任 | 生产运维负责人、应用发布负责人、数据库负责人 |
 | 敏感信息管理 | 账号密码、Token、密钥不写入本仓库，应保存在密码库或运维台账 |
+
+> 集社云接入版本的发布以[第20节](#20-集社云电表接入版本上线说明2026-10)为准，包含生产变量、镜像、增量迁移、调度、验收与回退。第12节中的历史版本标签及第19节的产品碳足迹发布剧本不适用于本次接入；本节文档更新不代表已经批准或执行生产上线。
 
 ## 2. 修订记录
 
@@ -21,6 +23,7 @@
 | v1.1 | 2026-04-28 | GitHub Copilot | 新增纯镜像生产部署模板、离线镜像交付要求、EMQX 与 myems-mqtt 初始化指引 |
 | v1.2 | 2026-05-07 | GitHub Copilot | 补充 GitHub Actions 预构建、GHCR 在线验证、离线镜像包交付、分批上线与验证 SOP |
 | v1.3 | 2026-05-08 | GitHub Copilot | 补充当前仓库 GitHub Actions 触发规则、artifact 命名、分支到 tag 的发布路径与本版本上线剧本 |
+| v1.4 | 2026-10-18 | GitHub Copilot | 增加集社云9台试点版本的生产配置、镜像交付、增量迁移、分阶段调度、验收边界及回退要求 |
 
 ## 3. 文档目的与适用范围
 
@@ -1102,9 +1105,9 @@ API 发布会直接影响前后台可用性和第三方接口调用，应避免�
 3. 发布失败升级路径。
 4. 数据对账结果归档规范。
 
-## 19. 当前版本发布指引
+## 19. 历史版本发布指引（2026-05产品碳足迹）
 
-本节用于指导当前已验收版本从本地仓库发布到 GitHub，并再由 GitHub Actions 进入生产升级。
+本节保留2026-05产品碳足迹版本从本地仓库发布到 GitHub、再由 GitHub Actions 进入生产升级的历史指引，不是集社云接入的发布步骤。
 
 ### 19.1 当前版本源码基线
 
@@ -1149,3 +1152,231 @@ API 发布会直接影响前后台可用性和第三方接口调用，应避免�
 5. 公式校验：排放量为 `活动水平 * 因子`，碳足迹贡献为 `排放量 / 产量`，总碳足迹为全部活动贡献求和。
 6. 报告导出：点击“生成报告”后可下载 PDF，且 PDF 不包含界面操作按钮。
 7. 数据库校验：`tbl_versions` 已更新至 `6.3.8`，菜单 `1300/1301/1302/1303` 已正确写入。
+
+## 20. 集社云电表接入版本上线说明（2026-10）
+
+### 20.1 版本基线、范围与上线闸门
+
+- 源码基线：`34136ad`（`feat(jishiyun): deliver audited nine-meter acquisition pilot`），分支 `feature/jishiyun-api-integration-v2`。这是已推送的功能分支，不代表已经合并主分支、生成生产镜像或发布生产。发布负责人另行批准不可变release tag/镜像digest，并核对各镜像对应的提交。
+- 仅接入 `/NH2/AmmeterBasicInfo` 电表档案、`/NH2/ElectricQuantity` 电量接口。独立worker调用供方，API只提供管理员控制、查询及共享处理逻辑，不在API请求中直接调用供方。
+- 已验收：9台有效电表，常规采集、历史补数、映射与任务、源级原始结果、分阶段处理状态、UTC+8时间、执行起止时间；真实跨日24小时数据及测试费用/碳排、直接输入空间/设备分类、报表导出。最终代码回归408项通过，不能据此承诺70台容量或连续可用性。
+- 版本详情见[版本计划](集社云接口接入版本计划.md)、[人工验收脚本](集社云人工验收测试脚本.md)、[worker说明](../myems-jishiyun/README.md)。
+
+| 发布前置项 | 要求与当前边界 |
+| --- | --- |
+| 本次放行规模 | 现有证据仅覆盖9台；70多台全量前完成容量、并发、长补数及数据库负载验证，不直接按设备数量外推 |
+| 连续运行 | 补齐的24小时数据不等于无中断观察；完成连续24小时采集/业务处理监控和停机恢复演练 |
+| 传输安全 | 真实供方试点是HTTP明文；本机试点授权不继承为生产授权，默认禁止生产开启HTTP测试豁免 |
+| 数据库 | 增量迁移、跨库事务、备份恢复及最小权限在生产等价预发环境验证后签收 |
+| 正式费用/碳排 | 正式费率、碳因子、有效期、小时内切价和账单舍入政策必须确认；当前自动结算开关仅用于测试，不能承诺正式自动结算 |
+| 原始修订 | 批准式CLI及隔离副本并发/回滚已验证；真实供方修订事件仍待复验，不自动批准历史重算 |
+| 派生统计 | 只签收已批准的直接输入空间/设备分类；输出、分项、任意层级、虚拟/组合/车间/商铺/租户等不能默认覆盖 |
+
+本次属于B/C/D/E混合发布：涉及API、管理端、聚合writer隔离、新采集服务及数据库扩展。不能套用“仅前端发布”顺序。前置未满足时只允许经批准的受限试点，不标记为生产全量验收。
+
+### 20.2 服务、镜像与生产交付要求
+
+| 服务/产物 | 本次要求 |
+| --- | --- |
+| `api` | 更新镜像；构建上下文必须是仓库根目录，Dockerfile为 `myems-api/Dockerfile`，镜像内安装本仓库 `myems_jishiyun` 共享包 |
+| `admin` | 更新工作台、语言资源及Nginx配置；入口HTML no-cache，语言脚本版本随发布更新；已打开页面需刷新，必要时Ctrl+F5 |
+| `aggregation` | 在启用新业务writer前升级；包含电表费用/碳排与6个空间/设备输入分类循环的独占writer过滤，不能继续运行不识别本次归属标记的旧镜像 |
+| `jishiyun_worker` | 新增独立镜像/服务，无需暴露HTTP端口；以非root用户运行，保留只读根目录、可写 `/tmp`、降权及健康检查配置 |
+| 其他服务 | 本次不要求为了接入而重启 `web`、`emqx`、`myems_mqtt`、`modbus_tcp`、`cleaning`、`normalization`；已有链路保持原配置 |
+
+当前 [Actions预构建工作流](../.github/workflows/prebuild-images.yml) **没有包含worker镜像**；现有 [Linux纯镜像模板](../others/docker-compose-on-linux.image.yml) 也没有worker服务。不能只下载既有metadata就认为本次交付齐全。
+
+在可信构建机补交worker镜像及其digest/离线包，API、Admin、aggregation也必须来自本次批准基线。以下为构建机Linux示意，镜像名和标签由发布负责人替换，**不是生产现场构建命令**：
+
+```bash
+cd /path/to/approved-checkout
+docker build -f myems-api/Dockerfile -t myems/api:<approved-release> .
+docker build -f myems-jishiyun/Dockerfile.worker -t myems/jishiyun-worker:<approved-release> myems-jishiyun
+```
+
+生产继续采用 `pull` 或 `docker load` 后 `up -d --no-build`。记录镜像清单、架构、digest及回退兼容镜像，不使用 `latest`。供方Key不得作为build arg、镜像层或源码打包进入镜像。
+
+### 20.3 worker生产环境变量
+
+配置来源为 [example.env](../myems-jishiyun/example.env) 与 [worker入口](../myems-jishiyun/myems_jishiyun/worker.py)。将模板复制到目标环境的 `myems-jishiyun/.env`，由受限权限部署文件或受控秘密注入；**不可复制本机试点 `.env` / `state`**。文件不得入库、进入镜像或发到公共工单。以下只给变量名和约束，不包含实际凭据。
+
+| 变量 | 必填/默认值 | 生产配置要求 |
+| --- | --- | --- |
+| `JISHIYUN_API_KEY` | `run`及额度检查必填，无默认 | 供方分配的正式凭据；非空可见ASCII，不含空格/换行；仅worker持有，不发到浏览器或管理端配置响应 |
+| `JISHIYUN_BASE_URL` | `run`必填，无默认 | 经确认、证书有效的HTTPS URL，路径必须为 `/WebApi`；不包含接口子路径、用户名密码、query或fragment；禁止用认证网站地址代替实际数据接口 |
+| `JISHIYUN_ALLOW_HTTP_TEST` | 可选，`false` | 只接受小写 `true` / `false`。生产保持 `false`；`true` 仅允许 `http://nhapi.yunjichaobiao.com/WebApi` 的80端口测试豁免，不是通用HTTP开关 |
+| `JISHIYUN_DATA_SOURCE_ID` | 必填，无默认 | 目标系统已创建且属于本次接入的正整数数据源ID；任务、映射、运行、额度和业务审计均需按该源核对，不照抄本机源4 |
+| `JISHIYUN_DB_HOST` | 必填，无默认 | 从worker容器实际可达的MySQL地址；宿主机MySQL应配置可达内网地址/经配置的host gateway，容器内 `127.0.0.1` 不是宿主机 |
+| `JISHIYUN_DB_PORT` | 可选，`3306` | 整数1～65535；数据库不暴露公网 |
+| `JISHIYUN_DB_USER` | 必填，无默认 | 专用最小权限运行账号，不使用试点root；权限需覆盖实际启用阶段及跨schema事务，见20.4 |
+| `JISHIYUN_DB_PASSWORD` | 必填，无默认 | 正式秘密；不能留空、写入本文或命令行历史；轮换后需重建worker容器并验证，不只执行restart |
+
+即使不启用采集定时器，`run` 仍会检查URL/Key并消费已排队任务；纯数据库预览类CLI不需要供方URL/Key。worker当前固定使用 `myems_system_db` 等代码中的标准schema名称，**没有** `JISHIYUN_DB_DATABASE` 可供改名；不能将不同schema名称仅通过既有应用变量映射后假定兼容。
+
+**HTTP生产阻塞：** 供方未提供可验证HTTPS时，不能填一个推测的HTTPS地址，也不能关闭证书校验。本版本没有独立的生产HTTP授权机制。应优先与供方落实加密数据入口；若仍需例外，必须另行安全评审、生产风险签署及受控方案，不把 `ALLOW_HTTP_TEST=true` 作为常规上线步骤。认证系统自身使用HTTPS，不等于供方电量接口加密。
+
+### 20.4 既有应用变量、数据库与权限
+
+- API继续使用 `myems-api/.env`，aggregation使用 `myems-aggregation/.env`，不因worker新增而改用 `JISHIYUN_DB_*`。按各自 `config.py` 复核既有数据库连接。
+- 与本链路直接相关的配置族为 `MYEMS_SYSTEM_DB_*`、`MYEMS_HISTORICAL_DB_*`、`MYEMS_ENERGY_DB_*`、`MYEMS_BILLING_DB_*`、`MYEMS_CARBON_DB_*`。每族后缀是 `HOST`、`PORT`、`DATABASE`、`USER`、`PASSWORD`；原有其他业务库配置继续保留。不要依赖代码开发默认的root、空密码或容器内loopback。
+- API的处理状态查询通过共享队列连接读取跨库原始/业务证明，系统库连接账号也需相应跨库读权限；API执行任务、映射/档案操作还需批准范围内写权限。只给单库权限可能导致页面或操作失败。
+- API Redis配置沿用 `IS_REDIS_ENABLED`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`REDIS_DB`，不新增worker Redis。暂存电表及直接关联空间的相关报表已绕过Redis，其他对象仍沿用缓存；不通过flush Redis解决本次验收。
+- `LOCAL_*`、本机容器名、actor 1、source 4、space 2、equipment 1、product 2及测试成本中心/类别2均为本机验收配置，不是生产默认值。
+
+**数据库前置：**
+
+1. 系统库、历史库、能耗库、计费库、碳排库必须在同一个MySQL实例，参与本链路写入/审计的表使用InnoDB。worker使用单连接跨schema事务，不支持用五台独立数据库服务器替代。
+2. DBA备份涉及的配置、原始数据、业务数据、任务/审计表，并完成可恢复性检查；迁移账号与运行账号分离。运行账号不应拥有建库、删库、任意DDL权限；根据采集、初始化、业务写入、纠正等批准功能逐表授予所需 `SELECT/INSERT/UPDATE/DELETE`，在预发验证，不在此给全库root式授权。
+3. 在已安装基础库的环境，仅执行 [集社云增量脚本](../database/install/myems_jishiyun.sql)，**不要重跑全量安装脚本**。脚本创建10张系统扩展表及1张历史原始表，其中必须包含 `tbl_jishiyun_business_jobs`；不改系统版本号、不删除已有业务数据。
+4. 脚本使用 `CREATE TABLE IF NOT EXISTS`，重复执行不等于已核对旧表结构；核对已有扩展表定义、索引和InnoDB，尤其升级早期试点环境。DDL不能依赖事务整体回滚，失败时由DBA检查实际已创建部分。
+5. 迁移后先只读核对，再启用写入；执行开始/完成时间和任务摘要复用已有字段，不需要另造一份“已处理”布尔字段迁移。
+
+Linux生产机迁移示例，`mysql --login-path` 所用账号由DBA在本机安全配置，不能把密码直接写在命令中：
+
+```bash
+cd /home/ubuntu/myems-complete
+mysql --login-path=myems-release < database/install/myems_jishiyun.sql
+```
+
+### 20.5 数据源、映射、任务参数与独占writer
+
+以下是数据库持久配置，不是环境变量；通过管理员工作台审核配置，不新增臆造的 `JISHIYUN_SCHEDULE_*` 变量。
+
+| 配置 | 要求 |
+| --- | --- |
+| 数据源/任务类型 | 新建目标数据源；档案获取/初始化使用 `meter_initialize`、常规电量 `energy_collect`、历史补数 `energy_backfill`，任务/映射先保持暂停；DDL中的 `archive_sync` 不是当前工作台档案获取任务类型 |
+| 供方时区 | `provider_utc_offset_minutes=480`；数据库存UTC，工作台固定UTC+8，提交时间必须带时区，不用宿主机 `TZ` 替代供方时区 |
+| 请求编码 | 任务参数 `encoding` 按供方验证结果配置 `json` 或 `form`，不混用；档案和电量按各自实际契约验收 |
+| 计划分钟 | `schedule_minute`，0～59，表示供方本地每小时触发分钟 |
+| 数据延迟 | `delay_minutes`，0～65535；应留足20～30分钟延迟并按实测保守配置，例如40分钟 |
+| 回看窗口 | `lookback_hours`，1～24；建议试点从重叠3小时开始评估，用幂等抵御重复，不设为无限历史回补 |
+| 映射范围 | 核对唯一表地址、外部编号、电表/点位及生效时间；档案初始化不自动启用采集，审核后才批量确认启用，无效设备继续暂停 |
+| 点位归属 | 专用 `JISHIYUN_REGISTER`，单位kWh、ratio=1、offset=0，一表一点独占；不能改成旧 `ENERGY_VALUE` 后让旧normalization重复计算 |
+
+调度窗口计算为：最近到期tick减 `delay_minutes` 后向下取整到整点，再回看 `lookback_hours`。例如北京时间13:40、分钟40、延迟40、回看3小时，对应 `[10:00,13:00)`，不是 `[10:40,13:40)`。调度仅提交最近tick的窗口；停机超出回看范围的历史缺口需另建补数任务。
+
+原始口径为15分钟时刻累计正向有功（`ZYGDNSZ`，kWh），不重复乘倍率；已确认的午夜23:59报文按次日00:00口径规范。每小时需起点、+15、+30、+45、终点五点有效且身份/修订一致，小时量 `R(end)-R(start)`；缺失不填0、不插值。
+
+**防双writer：** aggregation升级后会排除暂存点关联电表的旧计费/碳排writer；已批准直接输入维度使用精确 `JISHIYUN_PILOT_SOURCE:<source_id>` 归属标记，由独立worker拥有writer。不得随意删除标记、为同一对象启动旧循环、手工写业务目标或通过改点类型绕过保护。同一电表不能同时直接计入空间、又经设备重复计入该空间。源锁只约束遵循同一协议的writer，不保证任意外部SQL写入安全。
+
+### 20.6 生产纯镜像worker配置与启动开关
+
+[通用worker模板](../others/docker-compose-jishiyun-worker.yml) 使用 `build`，默认命令只有 `run --health-file ...`，**默认不开启** `--schedule` 和 `--business-schedule`。生产不直接把该开发构建模板叠到纯镜像模板并期待自动调度。
+
+在生产 `others` 目录由运维维护 `docker-compose-jishiyun.production.yml`，示例如下（该文件为目标机部署配置，不是仓库已交付的现成文件）。与主纯镜像Compose组合使用，保持相同项目名；如既有项目使用 `-p`，下文所有命令也必须带同一个 `-p`：
+
+```yaml
+services:
+  jishiyun_worker:
+    image: ${MYEMS_JISHIYUN_IMAGE:?approved worker image is required}
+    env_file:
+      - ../myems-jishiyun/.env
+    command: ["run", "--health-file", "/tmp/jishiyun-worker-health.json"]
+    restart: on-failure
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+```
+
+`MYEMS_JISHIYUN_IMAGE` 是**上述部署示例引入的Compose插值变量**，不是worker读取的环境变量；运维需把批准的不可变镜像引用追加到目标机 `others/docker-images.env`。现有Actions不会自动生成该项。已有 `MYEMS_API_IMAGE`、`MYEMS_ADMIN_IMAGE`、`MYEMS_AGGREGATION_IMAGE` 也必须更新到本次批准镜像。普通Docker Compose的 `env_file` 是容器环境注入，不等于应用支持自动读取Docker secret文件。
+
+| 启动参数 | 含义及启用要求 |
+| --- | --- |
+| `run --health-file /tmp/jishiyun-worker-health.json` | 消费已排队档案/电量任务，不创建每小时计划；不是“不写数据库”的dry-run |
+| 增加 `--schedule` | 提交当前源下已启用 `energy_collect` 的最近到期窗口，不自动定时拉档案，也不自动补齐全部停机历史 |
+| 增加 `--business-schedule --business-actor <正式操作人ID> --confirm-timestamp-kwh` | 开启持久业务队列，首次写入累计业务表及小时能耗；操作人ID用于审计而非鉴权，启动权限由运维控制 |
+| `--pilot-test-settlement` | 仅获批测试参数的费用/碳排及后续直接输入维度自动处理；**正式生产默认禁止加入** |
+| `--once` | 最多领取一个采集任务并执行本轮业务逻辑后退出，属于受控执行，不作为长驻健康进程 |
+
+按审批阶段修改示例中的 `command`，不能把全部开关一次复制启用。仅采集定时器的命令是：
+
+```yaml
+command: ["run", "--schedule", "--health-file", "/tmp/jishiyun-worker-health.json"]
+```
+
+采集及小时能耗经受控预览签收后，再改为下列命令；`<正式操作人ID>` 必须替换为目标环境批准的正整数ID，不能原样使用：
+
+```yaml
+command: ["run", "--schedule", "--business-schedule", "--business-actor", "<正式操作人ID>", "--confirm-timestamp-kwh", "--health-file", "/tmp/jishiyun-worker-health.json"]
+```
+
+**重要行为边界：** 开启业务调度会发现当前源下尚未登记业务作业的历史 `done` 电量运行（每轮最多100条），不只处理开启后新采集的运行；放行前审核历史范围。关闭业务调度不会撤销已经提交的业务数据。已 `done` 作业不会因为后加下游开关而重新扫描或自动批准原始修订。
+
+正式费率的受控首次结算可用 `business-settle --run-id <运行ID> --actor <操作人ID>` 先预览，经审核加 `--apply`；**不加 `--test-only`** 才走非 `PILOT TEST` 参数校验。当前要求完整小时唯一人民币分时费率、整个小时单一价格和碳因子，六位小数 `ROUND_HALF_UP`，小时内切价/重叠/缺档会阻塞，不是正式两位账单政策。尚无与测试开关对等的正式自动结算调度选项，若要求生产自动费用/碳排全链路，应先补齐并验收，不能借测试开关代替。
+
+当前直接输入空间/设备分类亦是明确配置后的受控试点能力，预览/执行见验收脚本；不会因为开启小时能耗调度就自动完成全部派生统计。能耗提交、费用/碳排提交、维度提交是后继可恢复事务，后阶段阻塞时前阶段可能已成功，不宣称整个链路一次回滚。
+
+### 20.7 分阶段上线SOP
+
+以下为Linux生产命令，工作目录是 `others`，不是本机 `myems-jishiyun-local`。命令中的部署文件、镜像及凭据均须已按前述准备；此处不执行真实环境变更。
+
+1. **审批与备份。** 明确仅采集/小时能耗/受控结算的放行边界，登记设备及历史窗口、传输风险、操作人、停机目标和回退镜像；备份数据库和部署配置。
+2. **迁移与预检。** 保持新任务/映射暂停、worker未运行；执行20.4增量迁移，核对11张扩展表及跨schema事务/权限；确认供方可达、正式凭据、时区和不超过10次/分钟限制。同Key其他调用方必须统一控流，不能只依赖本worker的共享额度。
+3. **交付镜像。** 在生产拉取/加载批准的API、Admin、aggregation、worker镜像。组合配置用 `config --quiet` 验证，不把展开后含秘密的 `docker compose config` 输出到工单或公共日志。
+
+```bash
+cd /home/ubuntu/myems-complete/others
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml config --quiet
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml pull api admin aggregation jishiyun_worker
+```
+
+离线交付时，用核对过digest的 `docker load` 替代 `pull`，不切回现场build。
+
+4. **先升级writer隔离，再发布控制界面。** 在启用任何新业务写入前升级aggregation；随后更新API和Admin。不要用第8节通用顺序替代本次隔离前置，不顺带重启其他采集服务。
+
+```bash
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml up -d --no-deps --no-build aggregation
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml up -d --no-deps --no-build api admin
+```
+
+5. **初始化与原始验收。** 工作台建立当前源的任务，批准启用 `meter_initialize` 任务后排队一次档案获取；用默认无调度worker消费，审核预览/配置，批准后初始化映射，再启用已批准设备及手动验收所需电量任务。通过工作台发起小窗口手动采集，验证地址、单位、时区、延迟、共享边界、缺失告警及重复提交幂等。此阶段不启用调度参数；启动前确认队列内没有未经批准的历史作业。
+
+```bash
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml up -d --no-deps --no-build jishiyun_worker
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml ps api admin aggregation jishiyun_worker
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml exec -T jishiyun_worker python health.py
+```
+
+6. **受控业务验收。** 选成功整点1～24小时运行，用 `business-hour --run-id <运行ID> --actor <操作人ID> --confirm-timestamp-kwh` 先预览，签收再加 `--apply`。以独立SQL/报表核对五点、小时差值、唯一目标行及审计proof；费用/碳排、维度分别按20.6审批，不能只看采集done。
+7. **逐项开调度。** 先在目标机Compose命令增加 `--schedule` 并重建worker；按批准范围启用采集任务。小时能耗验收通过、历史运行范围已审核后，再加入业务调度三参数并重建。仍用步骤5的 `up -d --no-deps --no-build jishiyun_worker`；环境变量或命令变更不能只用 `docker compose restart`。
+8. **补数与观察。** 对停机/初始化缺口显式补数，一批不超过31天、按最多一天拆子任务；业务验收使用整点窗口。重复同一提交复用request key和相同参数，变更窗口用新key；不盲目重发。完成连续观察及20.8对账后，才决定扩大设备范围。
+
+**禁止把测试配置迁入生产：** 本机测试电价2.3元/kWh、碳因子1.5kgCO₂e/kWh仅为隔离验收参数，已授权有效期截至北京时间 **2026-10-19 00:00**，到期不自动续期。不能复制本机9台配置脚本、来源ID、登录文件、测试SQL副本或 `compose.provider.yml` / `compose.schedule.yml` 到生产，也不能运行本机创建/删除临时schema的修订演练脚本作为生产迁移。
+
+### 20.8 上线验收、日常监控与故障判定
+
+| 核对面 | 必须检查 |
+| --- | --- |
+| 容器健康 | `health.py` 验证本地循环心跳在240秒内；Docker healthy不代表供方成功、数据完整或全部业务已完成 |
+| 任务与执行 | 核对实际开始/完成时间、数据窗口、最近状态、上次成功时间；失败也可有终止时间，不能把“有完成时间”当成功；所有工作台时间为UTC+8 |
+| 原始结果 | 当前源“采集接口执行结果”覆盖常规与补数，分页默认50/最多200、按原始编号倒序；同键只存当前行，不是每次HTTP响应的流水副本 |
+| 质量与处理 | 有效/无效/冲突是原始质量，不等于下游完成；分别核对小时能耗、费用/碳排、空间/设备及只读处理备注 |
+| 处理状态 | 已处理、部分已处理、待处理、已排队、处理中、受阻、失败、需复核/重算、未启用；以当前修订、有效审计及目标业务唯一行匹配判定，不以job done或last_run推断 |
+| 原始运行编号 | 首次运行是首次插入原始行的运行；末次写入/复核运行即使值没变也可能更新，不代表下游完成；revision才反映身份/值/质量变化 |
+| 幂等与小时完整 | 相同窗口重放不增加重复业务行；整点边界参与前后小时，缺一个结束边界可受阻而非补零；重叠窗口的总量不能相加 |
+| 下游报表 | 独立SQL/报表/XLSX三方核对电表小时量及批准范围的费用/碳排、直接输入分类；空间与设备是不同统计口径，不能重复相加 |
+| 运维容量 | 观察供方额度/冷却、排队积压、失败/partial/missing、blocked原因、数据库锁等待/事务耗时、磁盘和日志增长，扩大设备前保存基线 |
+
+契约错误仅在失败及审计成功持久化后允许worker继续；数据库/系统/失败持久化异常仍退出，不能当作“已跳过坏数据”。遇到退出、心跳过期或调度积压需显式告警，不用无限重启掩盖。
+
+数据修订或目标被删改时按备注处理，使用 `business-correct` 单独预览，复核精确旧/新差值与审批哈希后才执行 `--expected-hash ... --apply`。无工作台重算审批按钮；不得更新状态表假造done或手工覆盖原始审计。没有统一的停机缺口自动巡检/完整健康总览，下次计划时间也不能视为已交付功能，当前需运维分视图检查。
+
+归档只保存脱敏运行编号、窗口、计数、耗时、gate code和对账结论；不保存供方Key、完整含认证请求、密码、展开后的环境配置或未经处理的供方报文。
+
+### 20.9 暂停、故障恢复与回退
+
+1. **先控写入面。** 停止新采集/补数提交，按工作台保护规则暂停任务/映射。去掉 `--schedule` 只是不再生成计划，已有排队任务仍会被 `run` 消费；若要停业务还要关闭 `--business-schedule`。需要完全停止该链路时，停止独立worker，不影响其他采集容器。
+2. **记录并平稳停止。** 保存当前运行/业务作业、租约、最后完整数据/业务小时、暂停时间及已有提交阶段；允许在途工作结束，必要时给足优雅退出时间。异常强制中断后不手工清租约/改done，恢复时按租约与审计proof接续并核对是否已提交。
+
+```bash
+cd /home/ubuntu/myems-complete/others
+docker compose --env-file docker-images.env -f docker-compose-on-linux.image.yml -f docker-compose-jishiyun.production.yml stop -t 120 jishiyun_worker
+```
+
+3. **应用回退要保持隔离。** API/Admin/worker需兼容同一数据模型。仍存在 `JISHIYUN_REGISTER` 或归属标记数据时，不能把aggregation回到不识别隔离规则的旧版继续运行；优先停新worker、保留已升级隔离writer的版本，再评估回退范围。禁止通过删标记/改点类型让旧writer接管。
+4. **保留证据。** 不删除原始记录、任务、映射、proof、纠正事件来“回到上线前”；扩展表通常保留。数据库恢复必须单独审批、停止相关writer并对涉及schema一致恢复，评估其他采集链路新增数据损失，不能只恢复某张小时表或只DROP新增表。
+5. **恢复和补缺。** 先验证DB/权限、镜像、环境和隔离，再以受控命令恢复队列，核对重放无重复。按暂停前后时间列出超过回看范围的缺口，人工补数并逐阶段验收；不把容器重新healthy当作数据已全部追平。
