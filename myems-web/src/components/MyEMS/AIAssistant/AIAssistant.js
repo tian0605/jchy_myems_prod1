@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -22,6 +22,8 @@ import { APIBaseURL, settings } from '../../../config';
 import { createCookie, getCookieValue } from '../../../helpers/utils';
 import ButtonIcon from '../../common/ButtonIcon';
 import { ReportCard, ReportContent, ReportStreaming } from './AIAssistantReport';
+import { ChatEvidence, ChatClarification, scopeSelection } from './ChatDataContext';
+import { requestAIStream } from './AIAssistantStream';
 import './AIAssistant.css';
 
 const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
@@ -48,6 +50,11 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [chatPending, setChatPending] = useState(null);
+  const pendingRequest = useRef(null);
+  useEffect(() => () => {
+    if (pendingRequest.current) pendingRequest.current.abort();
+  }, []);
 
   const reportDraftKey = activeConversation && reportType
     ? [activeConversation.id, reportType, reportMode].join(':') : '';
@@ -82,6 +89,7 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
   };
 
   const loadConversation = conversationId => {
+    setChatPending(null);
     setError('');
     return fetch(APIBaseURL + '/ai-assistant/conversations/' + conversationId, requestOptions('GET'))
       .then(response => {
@@ -92,6 +100,12 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
       })
       .then(json => {
         setActiveConversation(json);
+        const last = json.messages[json.messages.length - 1];
+        const question = json.messages.slice().reverse().find(message => message.role === 'user');
+        if (last && question && last.data_context && last.data_context.status === 'input_required') {
+          setChatPending({ question: question.content, context: last.data_context,
+            selection: scopeSelection(last.data_context) });
+        }
         setSelectedAttachmentIds([]);
         return Promise.all([
           fetch(APIBaseURL + '/ai-assistant/conversations/' + conversationId + '/attachments', requestOptions('GET')),
@@ -181,6 +195,7 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
   }, [reportType, reportMode, activeConversation && activeConversation.id]);
 
   const createConversation = () => {
+    if (isSending) return;
     setError('');
     fetch(APIBaseURL + '/ai-assistant/conversations', {
       ...requestOptions('POST'),
@@ -200,6 +215,7 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
   };
 
   const renameConversation = conversation => {
+    if (isSending) return;
     const title = window.prompt(t('Rename conversation'), conversation.title);
     if (title === null || !title.trim()) {
       return;
@@ -227,6 +243,7 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
   };
 
   const deleteConversation = conversation => {
+    if (isSending) return;
     if (!window.confirm(t('Delete this conversation?'))) {
       return;
     }
@@ -347,7 +364,7 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
   };
 
   const sendMessage = (messageOverride, selectedReport, reportContextOverride, parentReportVersionId,
-    includeCostDataOverride = false) => {
+    includeCostDataOverride = false, chatSelection) => {
     const message = (messageOverride || content).trim();
     const selectedReportContext = reportContextOverride || (selectedReport ? reportContext : undefined);
     if (!message || !activeConversation || isSending) {
@@ -375,6 +392,7 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
       setContent('');
     }
     setError('');
+    setChatPending(null);
     setIsSending(true);
     if (!selectedReport) {
       const optimisticUserMessage = { id: 'local-user', role: 'user', content: message };
@@ -385,8 +403,11 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
       }));
     }
 
-    fetch(APIBaseURL + '/ai-assistant/conversations/' + activeConversation.id + '/messages', {
+    const controller = new AbortController();
+    pendingRequest.current = controller;
+    requestAIStream(APIBaseURL + '/ai-assistant/conversations/' + activeConversation.id + '/messages', {
       ...requestOptions('POST'),
+      signal: controller.signal,
       body: JSON.stringify({
         content: message,
         use_system_data: useSystemData,
@@ -394,67 +415,56 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
         report: selectedReport,
         report_context: selectedReport ? selectedReportContext : undefined,
         parent_report_version_id: parentReportVersionId,
-        include_cost_data: includeCostDataOverride
+        include_cost_data: includeCostDataOverride,
+        chat_selection: selectedReport ? undefined : chatSelection
       })
-    })
-      .then(response => {
-        if (!response.ok || !response.body) {
-          throw new Error(t('Unable to send message'));
-        }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        const readNext = () =>
-          reader.read().then(({ done, value }) => {
-            if (done) {
-              return null;
-            }
-            buffer += decoder.decode(value, { stream: true });
-            const events = buffer.split('\n\n');
-            buffer = events.pop();
-            events.forEach(rawEvent => {
-              const eventName = (rawEvent.match(/^event: (.+)$/m) || [])[1];
-              const dataLine = (rawEvent.match(/^data: (.+)$/m) || [])[1];
-              if (!dataLine) {
-                return;
-              }
-              const data = JSON.parse(dataLine);
-              if (eventName === 'delta') {
-                if (selectedReport) {
-                  setStreamingReport(previous => previous && { ...previous, content: previous.content + data.content });
-                } else {
-                  appendAssistantDelta(data.content);
-                }
-              } else if (eventName === 'status') {
-                const status = data.stage === 'collecting_report_data'
-                  ? t('Collecting report data') : t('Generating report');
-                if (selectedReport) {
-                  setStreamingReport(previous => previous && { ...previous, status });
-                } else {
-                  updateAssistantStatus(status);
-                }
-              } else if (eventName === 'report_done') {
-                setReportVersions(previous => previous.concat([{
-                  id: data.id, type: data.type, mode: data.mode, content: '',
-                  parent_report_version_id: data.parent_report_version_id,
-                  report_context: data.report_context, created_datetime_utc: new Date().toISOString()
-                }]));
-              } else if (eventName === 'input_required') {
-                setError(t('The available report inputs changed. Review the report information and send again.'));
-              } else if (eventName === 'error') {
-                setError(data.message);
-              }
-            });
-            return readNext();
+    }, (eventName, data) => {
+      if (eventName === 'delta') {
+        if (selectedReport) {
+          setStreamingReport(previous => previous && {
+            ...previous, content: previous.content + data.content, status: t('Generating report')
           });
-        return readNext();
-      })
+        } else {
+          appendAssistantDelta(data.content);
+          updateAssistantStatus(t('Generating analysis'));
+        }
+      } else if (eventName === 'status') {
+        const status = data.stage === 'collecting_report_data'
+          ? t('Collecting report data')
+          : data.stage === 'model_reasoning' ? t('Model is reasoning')
+          : data.stage === 'waiting_for_model' ? t('Waiting for model response')
+          : t(selectedReport ? 'Generating report' : 'Generating analysis');
+        if (selectedReport) {
+          setStreamingReport(previous => previous && { ...previous, status });
+        } else {
+          updateAssistantStatus(status);
+        }
+      } else if (eventName === 'report_done') {
+        setReportVersions(previous => previous.concat([{
+          id: data.id, type: data.type, mode: data.mode, content: '',
+          parent_report_version_id: data.parent_report_version_id,
+          report_context: data.report_context, created_datetime_utc: new Date().toISOString()
+        }]));
+      } else if (eventName === 'input_required') {
+        setError(t('The available report inputs changed. Review the report information and send again.'));
+      } else if (eventName === 'data_context') {
+        setActiveConversation(previous => ({
+          ...previous, messages: previous.messages.map(item =>
+            item.id === 'local-assistant' ? { ...item, data_context: data } : item)
+        }));
+      }
+    })
       .then(() => loadConversation(activeConversation.id))
       .then(loadConversations)
       .then(() => setSelectedAttachmentIds([]))
-      .catch(sendError => setError(sendError.message))
+      .catch(sendError => setError(t(sendError.name === 'AbortError' ? 'Stopped waiting for response' : sendError.message)))
       .finally(() => {
+        pendingRequest.current = null;
         setStreamingReport(null);
+        setActiveConversation(previous => previous && ({
+          ...previous, messages: previous.messages.map(item =>
+            item.id === 'local-assistant' ? { ...item, isStreaming: false } : item)
+        }));
         setIsSending(false);
       });
   };
@@ -556,9 +566,9 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
               key={conversation.id}
               role="button"
               tabIndex="0"
-              onClick={() => loadConversation(conversation.id)}
+              onClick={() => !isSending && loadConversation(conversation.id)}
               onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') {
+                if (!isSending && (event.key === 'Enter' || event.key === ' ')) {
                   event.preventDefault();
                   loadConversation(conversation.id);
                 }
@@ -582,6 +592,11 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
           {models.length > 0 && <Badge color="primary">{models[0].name}</Badge>}
         </header>
         {error && <Alert color="danger" className="m-3 mb-0">{error}</Alert>}
+        {isSending && <div className="mx-3 mt-2">
+          <Button color="outline-secondary" size="sm" onClick={() => pendingRequest.current && pendingRequest.current.abort()}>
+            {t('Stop waiting')}
+          </Button>
+        </div>}
         {!activeConversation && <Alert color="info" className="m-3">{t('Create a conversation to start')}</Alert>}
         {activeConversation && <Nav tabs className="ai-workflow-tabs">
           <NavItem><NavLink className={activeTab === 'chat' ? 'active' : ''} onClick={() => toggleTab('chat')}>{t('AI conversation')}</NavLink></NavItem>
@@ -599,6 +614,10 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
                       ? <ReportContent content={message.content} />
                       : (message.content || (message.isStreaming ? <Spinner size="sm" /> : ''))}
                   </div>
+                  {message.isStreaming && <div role="status" className="small text-muted mt-2">
+                    {message.status || t('Waiting for model response')}
+                  </div>}
+                  {message.role === 'assistant' && <ChatEvidence context={message.data_context} t={t} />}
                 </div>
               </div>
             ))}
@@ -629,10 +648,13 @@ const AIAssistant = ({ setRedirect, setRedirectUrl, t }) => {
           {revisionTarget && <div className="ai-report-revision"><div className="ai-report-input-heading"><strong>{t('Continue refining')}</strong><span>{t('Based on version')} #{revisionTarget.id}</span></div><Input type="textarea" rows="3" value={revisionContent} disabled={isSending} onChange={event => setRevisionContent(event.target.value)} placeholder={t('Describe the changes you want in the full report')} /><div className="ai-report-actions"><Button color="link" size="sm" disabled={isSending} onClick={() => setRevisionTarget(null)}>{t('Cancel')}</Button><ButtonIcon icon={['far', 'paper-plane']} color="primary" size="sm" disabled={isSending || !revisionContent.trim()} onClick={submitRevision}>{isSending ? t('Generating') : t('Regenerate full report')}</ButtonIcon></div></div>}
         </div>}
         {activeConversation && activeTab === 'chat' && <div className="ai-composer-area">
+          {useSystemData && <ChatClarification pending={chatPending} disabled={isSending} t={t}
+            onSubmit={selection => sendMessage(chatPending.question, undefined, undefined, undefined, false,
+              { ...chatPending.selection, ...selection })} />}
           <div className="ai-composer-toolbar">
             <FormGroup check className="mb-0">
               <Label check>
-                <Input type="checkbox" checked={useSystemData} onChange={event => setUseSystemData(event.target.checked)} /> {t('Use system data')}
+                <Input type="checkbox" disabled={isSending} checked={useSystemData} onChange={event => setUseSystemData(event.target.checked)} /> {t('Use system data')}
               </Label>
             </FormGroup>
             <ButtonIcon icon="paperclip" color="outline-secondary" size="sm" title={t('Attachments')} aria-label={t('Attachments')} onClick={() => document.getElementById('ai-chat-attachment-upload').click()} disabled={isSending} />

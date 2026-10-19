@@ -3,12 +3,19 @@ import hashlib
 import json
 import os
 import re
+import logging
+import time
+from dataclasses import dataclass
 
 import falcon
 import mysql.connector
 import requests
+from urllib3.exceptions import ReadTimeoutError
 
 import config
+from core.aichatdata import build_chat_context, load_catalog
+from core.aichatcontext import (chat_messages, context_is_visible, context_summary,
+                                previous_scope, save_context)
 from core.aimodelconfig import get_default_model_config, get_enabled_model_configs
 from core.aiassistantdocument import (AttachmentValidationError, attachment_path, parse_attachment,
                                       remove_attachment, save_attachment)
@@ -20,9 +27,15 @@ from core.aiassistantreport import (export_report_docx, parse_report_context, pa
 from core.useractivity import access_control, admin_control, get_request_context_value
 
 
+logger = logging.getLogger(__name__)
+
+
 def _read_json(req):
     try:
-        return json.loads(req.stream.read().decode('utf-8'))
+        values = json.loads(req.bounded_stream.read().decode('utf-8'))
+        if not isinstance(values, dict):
+            raise ValueError('Expected a JSON object')
+        return values
     except (UnicodeDecodeError, ValueError):
         raise falcon.HTTPError(status=falcon.HTTP_400,
                                title='API.BAD_REQUEST',
@@ -354,12 +367,54 @@ def _write_audit(conversation_id, user_id, enterprise_space_id, provider, model_
         cnx.close()
 
 
+@dataclass(frozen=True)
+class _ProviderStatus:
+    stage: str
+
+
+def _provider_events(response, deadline):
+    response.raise_for_status()
+    event_name = None
+    # Small SSE heartbeats must not sit in requests' default 512-byte buffer.
+    lines = response.iter_lines(chunk_size=1, decode_unicode=False)
+    while True:
+        try:
+            raw_line = next(lines)
+        except StopIteration:
+            return
+        except requests.ConnectionError as error:
+            # requests wraps streaming read timeouts as ConnectionError.
+            if error.args and isinstance(error.args[0], ReadTimeoutError):
+                raise requests.Timeout('AI provider stream read timed out.') from error
+            raise
+        if time.monotonic() >= deadline:
+            raise requests.Timeout('AI generation deadline exceeded.')
+        line = raw_line.decode('utf-8') if raw_line else ''
+        if not line:
+            event_name = None
+        elif line.startswith('event:'):
+            event_name = line[6:].strip()
+        elif line.startswith('data:'):
+            data = line[5:].strip()
+            if data == '[DONE]':
+                yield event_name, None
+                return
+            try:
+                payload = json.loads(data)
+            except ValueError as error:
+                raise requests.RequestException('Invalid provider stream JSON.') from error
+            if not isinstance(payload, dict):
+                raise requests.RequestException('Invalid provider stream payload.')
+            yield event_name, payload
+
+
 def _stream_completion(settings, messages):
     if settings['provider'] == 'ark_responses':
         yield from _stream_ark_response(settings, messages)
         return
 
-    response = requests.post(
+    deadline = time.monotonic() + settings['timeout_seconds']
+    with requests.post(
         settings['base_url'].rstrip('/') + '/chat/completions',
         headers={
             'Authorization': 'Bearer ' + settings['api_key'],
@@ -372,21 +427,30 @@ def _stream_completion(settings, messages):
         },
         stream=True,
         timeout=settings['timeout_seconds'],
-    )
-    response.raise_for_status()
-    for raw_line in response.iter_lines(decode_unicode=False):
-        line = raw_line.decode('utf-8') if raw_line else ''
-        if not line or not line.startswith('data:'):
-            continue
-        payload = line[5:].strip()
-        if payload == '[DONE]':
-            break
-        try:
-            delta = json.loads(payload)['choices'][0]['delta'].get('content', '')
-        except (KeyError, IndexError, TypeError, ValueError):
-            continue
-        if delta:
-            yield delta
+    ) as response:
+        reasoning = False
+        for _, payload in _provider_events(response, deadline):
+            if payload is None:
+                return
+            if payload.get('error'):
+                raise requests.RequestException('AI provider returned an error event.')
+            choices = payload.get('choices', [])
+            if not choices:
+                continue
+            choice = choices[0]
+            delta = choice.get('delta', {})
+            if delta.get('reasoning_content') and not reasoning:
+                reasoning = True
+                yield _ProviderStatus('model_reasoning')
+            content = delta.get('content', '')
+            if content:
+                yield content
+            reason = choice.get('finish_reason')
+            if reason == 'stop':
+                return
+            if reason:
+                raise requests.RequestException('AI response did not finish normally.')
+        raise requests.RequestException('AI stream ended without a completion event.')
 
 
 def _stream_ark_response(settings, messages):
@@ -399,44 +463,43 @@ def _stream_ark_response(settings, messages):
 
     base_url = settings['base_url'].rstrip('/')
     endpoint = base_url if base_url.endswith('/responses') else base_url + '/responses'
-    response = requests.post(
+    payload = {'model': settings['default_model'], 'input': input_messages, 'stream': True}
+    if settings.get('disable_thinking'):
+        payload['thinking'] = {'type': 'disabled'}
+    deadline = time.monotonic() + settings['timeout_seconds']
+    with requests.post(
         endpoint,
         headers={
             'Authorization': 'Bearer ' + settings['api_key'],
             'Content-Type': 'application/json',
             'Accept': 'text/event-stream',
         },
-        json={
-            'model': settings['default_model'],
-            'input': input_messages,
-            'stream': True,
-        },
+        json=payload,
         stream=True,
         timeout=settings['timeout_seconds'],
-    )
-    response.raise_for_status()
-    event_name = None
-    for raw_line in response.iter_lines(decode_unicode=False):
-        line = raw_line.decode('utf-8') if raw_line else ''
-        if not line:
-            event_name = None
-            continue
-        if line.startswith('event:'):
-            event_name = line[6:].strip()
-            continue
-        if not line.startswith('data:'):
-            continue
-        try:
-            payload = json.loads(line[5:].strip())
-        except ValueError:
-            continue
-        response_type = payload.get('type', event_name)
-        if response_type == 'response.output_text.delta':
-            delta = payload.get('delta', '')
-            if delta:
-                yield delta
-        elif response_type in ('response.failed', 'error'):
-            raise requests.HTTPError('Ark Responses API returned an error event.')
+    ) as response:
+        last_stage = None
+        for event_name, payload in _provider_events(response, deadline):
+            if payload is None:
+                raise requests.RequestException('Ark stream ended without response.completed.')
+            response_type = payload.get('type', event_name) or ''
+            if response_type == 'response.output_text.delta':
+                delta = payload.get('delta', '')
+                if delta:
+                    yield delta
+            elif response_type == 'response.completed':
+                if payload.get('response', {}).get('status', 'completed') != 'completed':
+                    raise requests.RequestException('Ark response did not complete successfully.')
+                return
+            elif response_type in ('response.failed', 'response.incomplete', 'response.cancelled', 'error'):
+                raise requests.RequestException('Ark Responses API returned an unsuccessful terminal event.')
+            else:
+                stage = ('model_reasoning' if response_type.startswith('response.reasoning') else
+                         'waiting_for_model' if response_type in ('response.created', 'response.in_progress') else None)
+                if stage and stage != last_stage:
+                    last_stage = stage
+                    yield _ProviderStatus(stage)
+        raise requests.RequestException('Ark stream ended without response.completed.')
 
 
 class AIAssistantConversationCollection:
@@ -510,6 +573,22 @@ class AIAssistantConversationItem:
                  'created_datetime_utc': row[6].isoformat()}
                 for row in cursor.fetchall()
             ]
+            if config.ai_assistant['chat_data_enabled']:
+                cursor.execute('SELECT c.message_id,c.context_json FROM tbl_ai_chat_contexts c '
+                               'JOIN tbl_ai_assistant_messages m ON m.id=c.message_id '
+                               'WHERE m.conversation_id=%s', (id_,))
+                snapshots = {mid: json.loads(value) for mid, value in cursor.fetchall()}
+                capabilities = get_request_context_value(req, 'ai_capabilities', [])
+                catalog = load_catalog(get_request_context_value(req, 'authorized_space_ids', []))
+                for message in messages:
+                    snapshot = snapshots.get(message['id'])
+                    if snapshot and context_is_visible(snapshot, enterprise_space_id, capabilities, catalog,
+                                                       get_request_context_value(req, 'web_routes')):
+                        message['data_context'] = snapshot
+                    elif snapshot or (message['role'] == 'assistant' and message['use_system_data']
+                                      and not message['report_version_id']):
+                        message['data_context'] = {'status': 'unavailable'}
+                        message['content'] = '历史系统数据来源未记录或当前已无权访问，请重新发起查询。'
             resp.text = json.dumps({
                 'id': conversation[0], 'title': conversation[1],
                 'created_datetime_utc': conversation[2].isoformat(),
@@ -814,6 +893,7 @@ class AIAssistantChat:
                                    title='API.BAD_REQUEST',
                                    description='API.INVALID_AI_REPORT_REQUEST')
         report_context = parse_report_context(values.get('report_context'))
+        chat_snapshot = None
         if report_request is not None and report_context is None:
             raise falcon.HTTPError(status=falcon.HTTP_400,
                                    title='API.BAD_REQUEST',
@@ -865,6 +945,17 @@ class AIAssistantChat:
                 resp.set_header('X-Accel-Buffering', 'no')
                 resp.stream = requirement_stream()
                 return
+            if report_request is None and use_system_data:
+                if config.ai_assistant['chat_data_enabled']:
+                    chat_snapshot = build_chat_context(
+                        enterprise_space_id, authorized_space_ids,
+                        get_request_context_value(req, 'ai_capabilities', []), content,
+                        previous_scope(cursor, id_), values.get('chat_selection'),
+                        web_routes=get_request_context_value(req, 'web_routes'))
+                else:
+                    chat_snapshot = {
+                        'status': 'disabled',
+                        'message': '当前为基础聊天，系统分析能力未启用；请启用AI_CHAT_DATA_ENABLED后查询业务数据。'}
             report_template = get_published_template(report_request['type'], report_request['mode']) \
                 if report_request is not None else None
             cursor.execute(" SELECT COUNT(*) FROM tbl_ai_assistant_messages WHERE conversation_id = %s ", (id_,))
@@ -873,6 +964,8 @@ class AIAssistantChat:
                            "     (conversation_id, role, content, use_system_data) VALUES (%s, 'user', %s, %s) ",
                            (id_, content, use_system_data))
             user_message_id = cursor.lastrowid
+            if chat_snapshot is not None and config.ai_assistant['chat_data_enabled']:
+                save_context(cursor, user_message_id, chat_snapshot)
             attachment_message = _attachment_context(cursor, id_, attachment_ids, user_id, enterprise_space_id)
             for attachment_id in attachment_ids:
                 cursor.execute(" INSERT INTO tbl_ai_assistant_message_attachments (message_id, attachment_id) "
@@ -887,7 +980,9 @@ class AIAssistantChat:
             cursor.execute(" SELECT role, content FROM tbl_ai_assistant_messages "
                            " WHERE conversation_id = %s ORDER BY id ", (id_,))
             messages = [{'role': row[0], 'content': row[1]} for row in cursor.fetchall()]
-            if use_system_data:
+            if report_request is None:
+                messages = chat_messages(content, chat_snapshot, attachment_message)
+            elif use_system_data:
                 product_context_query = content
                 follow_up_markers = ('本条记录', '上一条', '刚才', '这个产品', '该产品', '该记录', '上述',
                                      '这些阶段', '生命周期阶段', '活动明细', 'those stages', 'that record')
@@ -898,24 +993,32 @@ class AIAssistantChat:
                                                            product_context_query)
                 if system_data_message is not None:
                     messages.insert(0, system_data_message)
-            if attachment_message is not None:
+            if attachment_message is not None and report_request is not None:
                 messages.insert(0, attachment_message)
             cnx.commit()
         finally:
             cursor.close()
             cnx.close()
 
-        settings = _provider_settings()
+        local_reply = chat_snapshot is not None and chat_snapshot['status'] not in ('available', 'partial')
+        settings = ({'provider': 'local', 'default_model': 'system-data'}
+                    if local_reply else _provider_settings())
+        if not local_reply and report_request is None:
+            settings = {**settings, 'timeout_seconds': config.ai_assistant['chat_timeout_seconds'],
+                        'disable_thinking': config.ai_assistant['chat_disable_thinking']}
         report_data_context = None
 
         def stream():
             nonlocal report_data_context
             response_content = ''
             report_version_id = None
+            started_at = time.monotonic()
+            response_stage = 'preparing'
             yield _event('meta', {'conversation_id': int(id_), 'model': settings['default_model'],
+                                  'timeout_seconds': settings.get('timeout_seconds', 60),
                                   'use_system_data': use_system_data, 'report': report_request,
                                   'report_context': report_context,
-                                  'data_context': None,
+                                  'data_context': context_summary(chat_snapshot) if chat_snapshot is not None else None,
                                   'attachment_ids': attachment_ids})
             try:
                 if report_request is not None:
@@ -930,8 +1033,20 @@ class AIAssistantChat:
                                                           report_data_context))
                     if parent_report is not None:
                         messages.insert(0, report_revision_instruction(parent_report[3]))
-                yield _event('status', {'stage': 'generating_response'})
-                for delta in _stream_completion(settings, messages):
+                if chat_snapshot is not None:
+                    yield _event('data_context', context_summary(chat_snapshot))
+                    if chat_snapshot['status'] == 'input_required':
+                        yield _event('chat_input_required', context_summary(chat_snapshot))
+                yield _event('status', {'stage': 'waiting_for_model' if not local_reply else 'generating_response',
+                                       'timeout_seconds': settings.get('timeout_seconds', 60)})
+                response_stage = 'waiting_for_model' if not local_reply else 'generating_response'
+                completion = ([chat_snapshot['message']] if local_reply else _stream_completion(settings, messages))
+                for delta in completion:
+                    if isinstance(delta, _ProviderStatus):
+                        response_stage = delta.stage
+                        yield _event('status', {'stage': delta.stage})
+                        continue
+                    response_stage = 'generating_response'
                     response_content += delta
                     yield _event('delta', {'content': delta})
                     if report_request is not None:
@@ -968,6 +1083,8 @@ class AIAssistantChat:
                                                 "      report_version_id) VALUES (%s, 'assistant', %s, %s, %s, %s) ",
                                                 (id_, response_content, settings['default_model'], use_system_data,
                                                  report_version_id))
+                        if chat_snapshot is not None and config.ai_assistant['chat_data_enabled']:
+                            save_context(database_cursor, database_cursor.lastrowid, chat_snapshot)
                         database_cursor.execute(" UPDATE tbl_ai_assistant_conversations "
                                                 " SET updated_datetime_utc = %s WHERE id = %s ",
                                                 (datetime.datetime.utcnow(), id_))
@@ -987,12 +1104,23 @@ class AIAssistantChat:
                                                               'version_id': report_template['version_id'],
                                                               'version_number': report_template['version_number']}})
                 yield _event('done', {'conversation_id': int(id_), 'report_version_id': report_version_id})
-            except (requests.RequestException, mysql.connector.Error, ValueError):
-                _write_audit(id_, user_id, enterprise_space_id, settings['provider'],
-                             settings['default_model'], 'failed', 'UPSTREAM_PROVIDER_ERROR',
-                             report_request['mode'] if report_request is not None else None)
-                yield _event('error', {'code': 'UPSTREAM_PROVIDER_ERROR',
-                                       'message': 'The configured AI provider is unavailable.'})
+            except (requests.RequestException, mysql.connector.Error, ValueError) as error:
+                logger.exception('AI response failed: conversation=%s stage=%s elapsed_seconds=%.1f output_chars=%s',
+                                 id_, response_stage, time.monotonic() - started_at, len(response_content))
+                code = 'AI_RESPONSE_STORAGE_ERROR' if isinstance(error, mysql.connector.Error) else 'UPSTREAM_PROVIDER_ERROR'
+                if isinstance(error, requests.Timeout):
+                    code = 'AI_PROVIDER_TIMEOUT'
+                try:
+                    _write_audit(id_, user_id, enterprise_space_id, settings['provider'],
+                                 settings['default_model'], 'failed', code,
+                                 report_request['mode'] if report_request is not None else None)
+                except mysql.connector.Error:
+                    logger.exception('Unable to persist failed AI response audit: conversation=%s', id_)
+                yield _event('error', {'code': code, 'message':
+                    '模型响应超时，未保存为成功回复。请稍后重试，或由管理员检查模型服务及超时配置。'
+                    if code == 'AI_PROVIDER_TIMEOUT' else
+                    'The response could not be saved. Please retry after checking the database.'
+                    if code == 'AI_RESPONSE_STORAGE_ERROR' else 'The configured AI provider is unavailable.'})
 
         resp.status = falcon.HTTP_200
         resp.content_type = 'text/event-stream'
