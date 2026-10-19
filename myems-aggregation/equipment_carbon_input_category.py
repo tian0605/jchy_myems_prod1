@@ -85,6 +85,7 @@ def main(logger):
         try:
             cursor_system_db.execute(" SELECT id, name, cost_center_id "
                                      " FROM tbl_equipments "
+                                     " WHERE COALESCE(description,'') NOT LIKE 'JISHIYUN_PILOT_SOURCE:%' "
                                      " ORDER BY id ")
             rows_equipments = cursor_system_db.fetchall()
 

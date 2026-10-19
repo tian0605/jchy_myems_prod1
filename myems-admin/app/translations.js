@@ -5,6 +5,9 @@ function config($translateProvider) {
   var bundles = window.myemsAdminTranslations || {};
 
   Object.keys(bundles).forEach(function (lang) {
+    if (!bundles[lang].ACQUISITION && bundles.en) {
+      bundles[lang].ACQUISITION = bundles.en.ACQUISITION;
+    }
     $translateProvider.translations(lang, bundles[lang]);
   });
 

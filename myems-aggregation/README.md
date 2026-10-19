@@ -8,6 +8,22 @@ Data Aggregation Service
 
 This service is a component of MyEMS to aggregate normalized data up to multiple dimensions.
 
+### Jishiyun staged-meter ownership
+
+Physical meter billing and carbon loops exclude meters associated with any
+`JISHIYUN_REGISTER` point. Those meters use the acquisition worker's audited
+settlement path; do not run two writers against their hourly billing/carbon rows.
+Other legacy meter selection is unchanged. Space/equipment energy, billing and
+carbon **input-category** loops also exclude objects explicitly marked with
+`JISHIYUN_PILOT_SOURCE:<source-id>` in `description`. Their complete direct-meter
+sums and approved corrections are owned by the pilot worker; ordinary objects
+remain selected. Do not remove the marker or invoke a legacy worker directly on
+an owned object. The local nine-meter pilot does not start this entire daemon.
+Company space 2 / test equipment 1 passed direct-input category SQL and real
+report/export acceptance. Equipment 1 is not counted back into space 2, avoiding
+two paths for the same meters. Output/item and arbitrary hierarchy acceptance
+are not covered; existing unsupported derived history blocks correction.
+
 ## Dependencies
 
 mysql-connector-python

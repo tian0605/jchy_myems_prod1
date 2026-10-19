@@ -1,0 +1,204 @@
+<div class="panel-body" ng-controller="AcquisitionController">
+    <div class="alert alert-info">{{'ACQUISITION.NOTICE' | translate}}</div>
+    <div class="alert alert-danger" role="alert" ng-if="acquisition.error">{{acquisition.error}}</div>
+    <div class="row">
+        <div class="col-sm-4">
+            <label>{{'DATA_SOURCE.SELECT_DATA_SOURCE' | translate}}</label>
+            <select class="form-control" ng-model="acquisition.source" ng-change="acquisitionReset()" ng-disabled="acquisition.busy">
+                <option value="">{{'COMMON.PLACEHOLDER' | translate}}</option>
+                <option ng-repeat="source in acquisitionSources" value="{{source.id}}">{{source.name}}</option>
+            </select>
+        </div>
+        <div class="col-sm-4">
+            <label>{{'ACQUISITION.VIEW' | translate}}</label>
+            <select class="form-control" ng-model="acquisition.collection" ng-change="acquisitionReset()" ng-disabled="acquisition.busy">
+                <option value="tasks">{{'ACQUISITION.TASKS' | translate}}</option>
+                <option value="runs">{{'ACQUISITION.RUNS' | translate}}</option>
+                <option value="readings">{{'ACQUISITION.READINGS' | translate}}</option>
+                <option value="business">{{'ACQUISITION.BUSINESS' | translate}}</option>
+                <option value="alerts">{{'ACQUISITION.ALERTS' | translate}}</option>
+                <option value="events">{{'ACQUISITION.EVENTS' | translate}}</option>
+                <option value="mappings">{{'ACQUISITION.MAPPINGS' | translate}}</option>
+                <option value="batches">{{'ACQUISITION.BATCHES' | translate}}</option>
+                <option ng-if="acquisition.runId" value="items">{{'ACQUISITION.ITEMS' | translate}} #{{acquisition.runId}}</option>
+                <option ng-if="acquisition.runId" value="preview">{{'ACQUISITION.PREVIEW' | translate}} #{{acquisition.runId}}</option>
+            </select>
+        </div>
+        <div class="col-sm-2" ng-if="acquisition.collection === 'alerts'">
+            <label>{{'ACQUISITION.STATUS' | translate}}</label>
+            <select class="form-control" ng-model="acquisition.alertStatus" ng-change="acquisitionReset()" ng-disabled="acquisition.busy">
+                <option value="">{{'ACQUISITION.ALL' | translate}}</option>
+                <option value="active">active</option>
+                <option value="recovered">recovered</option>
+            </select>
+        </div>
+        <div class="col-sm-2">
+            <button type="button" class="btn btn-primary m-t-md" ng-click="acquisitionRefresh()" ng-disabled="!acquisition.source || acquisition.busy">{{'ACQUISITION.REFRESH' | translate}}</button>
+        </div>
+    </div>
+    <p class="alert alert-info m-t-md" ng-if="acquisition.collection === 'business'">{{'ACQUISITION.BUSINESS_NOTICE' | translate}}</p>
+    <p class="alert alert-info m-t-md" ng-if="acquisition.collection === 'tasks' || acquisition.collection === 'runs'">{{'ACQUISITION.EXECUTION_TIME_NOTICE' | translate}}</p>
+    <p class="alert alert-info m-t-md" ng-if="acquisition.collection === 'readings'">{{'ACQUISITION.READINGS_NOTICE' | translate}}</p>
+    <p class="alert alert-info" ng-if="acquisition.collection === 'readings'">{{'ACQUISITION.PROCESSING_NOTICE' | translate}}</p>
+    <div class="alert alert-info" ng-if="acquisition.collection === 'readings'">
+        <strong>{{'ACQUISITION.STATUS_GUIDE' | translate}}</strong>
+        <ul>
+            <li>{{'ACQUISITION.QUALITY_GUIDE' | translate}}</li>
+            <li ng-repeat="status in ['processed', 'partial', 'pending', 'queued', 'running', 'blocked', 'error', 'review_required', 'not_applicable']">
+                <strong>{{('ACQUISITION.PROCESSING_' + status) | translate}}</strong>：{{('ACQUISITION.STATUS_HELP_' + status) | translate}}
+            </li>
+        </ul>
+    </div>
+    <button type="button" class="btn btn-primary m-t-md" ng-if="acquisition.collection === 'tasks'" ng-click="acquisitionTaskNew()" ng-disabled="!acquisition.source || acquisition.busy">{{'ACQUISITION.create_task' | translate}}</button>
+    <form name="taskForm" ng-if="acquisition.taskEditor &amp;&amp; acquisition.collection === 'tasks'" ng-submit="acquisitionTaskConfirm()" class="well m-t-md">
+        <p>{{'ACQUISITION.TASK_EDITOR_NOTICE' | translate}}</p>
+        <p class="text-warning" ng-if="acquisition.taskEditor.enabled">{{'ACQUISITION.TASK_PAUSE_FIRST' | translate}}</p>
+        <fieldset ng-disabled="acquisition.busy || acquisition.taskEditor.enabled">
+            <div class="row">
+                <div class="col-sm-6"><label>{{'ACQUISITION.name' | translate}}</label><input class="form-control" required maxlength="255" ng-model="acquisition.taskEditor.configuration.name" ng-change="acquisitionTaskChanged()"></div>
+                <div class="col-sm-6"><label>{{'ACQUISITION.task_type' | translate}}</label><select class="form-control" required ng-model="acquisition.taskEditor.configuration.task_type" ng-change="acquisitionTaskChanged()" ng-disabled="!!acquisition.taskEditor.id"><option value="">{{'COMMON.PLACEHOLDER' | translate}}</option><option value="meter_initialize">{{'ACQUISITION.TYPE_INITIALIZE' | translate}}</option><option value="energy_collect">{{'ACQUISITION.TYPE_COLLECT' | translate}}</option><option value="energy_backfill">{{'ACQUISITION.TYPE_BACKFILL' | translate}}</option></select></div>
+            </div>
+            <fieldset ng-disabled="acquisition.taskEditor.hasRuns">
+                <div class="row">
+                    <div class="col-sm-4"><label>{{'ACQUISITION.schedule_minute' | translate}}</label><input class="form-control" type="number" required min="0" max="59" step="1" ng-model="acquisition.taskEditor.configuration.schedule_minute" ng-change="acquisitionTaskChanged()"></div>
+                    <div class="col-sm-4"><label>{{'ACQUISITION.delay_minutes' | translate}}</label><input class="form-control" type="number" required min="0" max="65535" step="1" ng-model="acquisition.taskEditor.configuration.delay_minutes" ng-change="acquisitionTaskChanged()"></div>
+                    <div class="col-sm-4"><label>{{'ACQUISITION.lookback_hours' | translate}}</label><input class="form-control" type="number" required min="1" max="24" step="1" ng-model="acquisition.taskEditor.configuration.lookback_hours" ng-change="acquisitionTaskChanged()"></div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-6"><label>{{'ACQUISITION.provider_utc_offset_minutes' | translate}}</label><p class="form-control-static">UTC+8</p><p class="text-danger" ng-if="acquisition.taskEditor.configuration.provider_utc_offset_minutes !== 480">{{'ACQUISITION.TASK_TIMEZONE_ERROR' | translate}}</p></div>
+                    <div class="col-sm-6"><label>{{'ACQUISITION.encoding' | translate}}</label><select class="form-control" required ng-model="acquisition.taskEditor.configuration.encoding" ng-change="acquisitionTaskChanged()"><option value="json">JSON</option><option value="form">Form</option></select></div>
+                </div>
+            </fieldset>
+            <button type="submit" class="btn btn-primary m-t-md" ng-disabled="taskForm.$invalid || acquisition.busy">{{'ACQUISITION.TASK_SAVE_CONFIRM' | translate}}</button>
+        </fieldset>
+        <button type="button" class="btn btn-default m-t-md" ng-click="acquisition.taskEditor = null; acquisition.pendingAction = null" ng-disabled="acquisition.busy">{{'ACQUISITION.DISMISS' | translate}}</button>
+    </form>
+    <form name="mappingForm" ng-if="acquisition.mappingEditor &amp;&amp; acquisition.collection === 'mappings'" ng-submit="acquisitionMappingConfirm()" class="well m-t-md">
+        <p>{{'ACQUISITION.MAPPING_EDITOR_NOTICE' | translate}}</p>
+        <p>{{'ACQUISITION.MAPPING_BEIJING_TIME' | translate}}</p>
+        <p>{{acquisition.mappingEditor.meterName}} / {{acquisition.mappingEditor.pointName}} — {{'ACQUISITION.OWNERSHIP_VERIFIED' | translate}}</p>
+        <fieldset ng-disabled="acquisition.busy || acquisition.mappingEditor.enabled || acquisition.mappingEditor.conflict">
+            <div class="row">
+                <div class="col-sm-6"><label>{{'ACQUISITION.collection_start_utc' | translate}}</label><input class="form-control" type="datetime-local" step="900" required ng-model="acquisition.mappingEditor.start" ng-model-options="{timezone: '+0800'}" ng-change="acquisitionTaskChanged()"></div>
+                <div class="col-sm-6"><label>{{'ACQUISITION.collection_end_utc' | translate}}</label><input class="form-control" type="datetime-local" step="900" ng-model="acquisition.mappingEditor.end" ng-model-options="{timezone: '+0800'}" ng-change="acquisitionTaskChanged()"></div>
+            </div>
+            <button type="submit" class="btn btn-primary m-t-md" ng-disabled="mappingForm.$invalid || acquisition.busy">{{'ACQUISITION.TASK_SAVE_CONFIRM' | translate}}</button>
+        </fieldset>
+        <p class="text-warning">{{'ACQUISITION.RAW_COLLECTION_NOTICE' | translate}}</p>
+        <label><input type="checkbox" ng-model="acquisition.mappingEditor.confirmKwhDirect" ng-change="acquisitionTaskChanged()" ng-disabled="acquisition.busy"> {{'ACQUISITION.CONFIRM_KWH_DIRECT' | translate}}</label>
+        <button type="button" class="btn btn-warning" ng-click="acquisitionMappingRawConfirm('enable_raw')" ng-disabled="acquisition.busy || acquisition.mappingEditor.enabled || acquisition.mappingEditor.conflict || !acquisition.mappingEditor.confirmKwhDirect || !acquisition.mappingEditor.expected.collection_start_utc">{{'ACQUISITION.enable_raw' | translate}}</button>
+        <button type="button" class="btn btn-default" ng-click="acquisitionMappingRawConfirm('pause_raw')" ng-disabled="acquisition.busy || !acquisition.mappingEditor.enabled || acquisition.mappingEditor.conflict || !acquisition.mappingEditor.confirmKwhDirect">{{'ACQUISITION.pause_raw' | translate}}</button>
+        <button type="button" class="btn btn-default m-t-md" ng-click="acquisition.mappingEditor = null; acquisition.pendingAction = null" ng-disabled="acquisition.busy">{{'ACQUISITION.DISMISS' | translate}}</button>
+    </form>
+    <div class="well m-t-md" ng-if="acquisition.collection === 'mappings'">
+        <button type="button" class="btn btn-default" ng-click="acquisitionMappingSelectPage()" ng-disabled="acquisition.busy">{{'ACQUISITION.SELECT_PAGE' | translate}}</button>
+        <button type="button" class="btn btn-default" ng-click="acquisitionMappingClear()" ng-disabled="acquisition.busy">{{'ACQUISITION.CLEAR_SELECTION' | translate}}</button>
+        <span>{{'ACQUISITION.SELECTED_COUNT' | translate}}: {{acquisitionMappingSelectedCount()}} / 200</span>
+        <button type="button" class="btn btn-primary" ng-click="acquisitionMappingBatchOpen()" ng-disabled="acquisition.busy || !acquisitionMappingSelectedCount()">{{'ACQUISITION.MAPPING_BATCH_OPEN' | translate}}</button>
+        <button type="button" class="btn btn-warning" ng-click="acquisitionMappingBatchOpen('enable_raw')" ng-disabled="acquisition.busy || !acquisitionMappingSelectedCount()">{{'ACQUISITION.MAPPING_BATCH_ENABLE' | translate}}</button>
+        <button type="button" class="btn btn-danger" ng-click="acquisitionMappingBatchOpen('pause_raw')" ng-disabled="acquisition.busy || !acquisitionMappingSelectedCount()">{{'ACQUISITION.MAPPING_BATCH_PAUSE' | translate}}</button>
+        <form name="mappingBatchForm" ng-if="acquisition.mappingBatch" class="m-t-md">
+            <p>{{'ACQUISITION.MAPPING_BATCH_NOTICE' | translate}}</p>
+            <p ng-if="acquisition.mappingBatch.mode === 'edit_range'">{{'ACQUISITION.MAPPING_BEIJING_TIME' | translate}}</p>
+            <fieldset ng-if="acquisition.mappingBatch.mode === 'edit_range'" ng-disabled="acquisition.busy">
+                <div class="row">
+                    <div class="col-sm-6"><label>{{'ACQUISITION.collection_start_utc' | translate}}</label><input class="form-control" type="datetime-local" step="900" ng-model="acquisition.mappingBatch.start" ng-model-options="{timezone: '+0800'}" ng-change="acquisitionTaskChanged()"></div>
+                    <div class="col-sm-6"><label>{{'ACQUISITION.collection_end_utc' | translate}}</label><input class="form-control" type="datetime-local" step="900" ng-model="acquisition.mappingBatch.end" ng-model-options="{timezone: '+0800'}" ng-change="acquisitionTaskChanged()"></div>
+                </div>
+                <button type="button" class="btn btn-primary m-t-md" ng-click="acquisitionMappingBatchConfirm('edit_range')" ng-disabled="mappingBatchForm.$invalid || !acquisition.mappingBatch.start">{{'ACQUISITION.MAPPING_BATCH_RANGE' | translate}}</button>
+            </fieldset>
+            <fieldset ng-if="['enable_raw', 'pause_raw'].indexOf(acquisition.mappingBatch.mode) >= 0" ng-disabled="acquisition.busy">
+                <p><label><input type="checkbox" ng-model="acquisition.mappingBatch.confirmKwhDirect" ng-change="acquisitionTaskChanged()"> {{'ACQUISITION.CONFIRM_KWH_DIRECT' | translate}}</label></p>
+                <p ng-if="acquisition.mappingBatch.mode === 'pause_raw'">{{'ACQUISITION.MAPPING_BATCH_PAUSE_NOTICE' | translate}}</p>
+                <button type="button" class="btn btn-warning" ng-click="acquisitionMappingBatchConfirm(acquisition.mappingBatch.mode)" ng-disabled="!acquisition.mappingBatch.confirmKwhDirect">{{'ACQUISITION.TASK_SAVE_CONFIRM' | translate}}</button>
+            </fieldset>
+        </form>
+    </div>
+    <form name="backfillForm" class="well m-t-md" ng-if="acquisition.backfillEditor &amp;&amp; acquisition.collection === 'tasks'" ng-submit="acquisitionBackfillConfirm()">
+        <p>{{'ACQUISITION.BACKFILL_NOTICE' | translate}}</p>
+        <p>{{'ACQUISITION.task_id' | translate}}: {{acquisition.backfillEditor.body.task_id}} / {{acquisition.backfillEditor.body.request_key}}</p>
+        <fieldset ng-disabled="acquisition.busy || acquisition.backfillEditor.attempted">
+            <div class="row">
+                <div class="col-sm-6"><label>{{'ACQUISITION.window_start_utc' | translate}}</label><input class="form-control" type="datetime-local" required step="900" ng-model="acquisition.backfillEditor.start" ng-model-options="{timezone: '+0800'}" ng-change="acquisitionTaskChanged()"></div>
+                <div class="col-sm-6"><label>{{'ACQUISITION.window_end_utc' | translate}}</label><input class="form-control" type="datetime-local" required step="900" ng-model="acquisition.backfillEditor.end" ng-model-options="{timezone: '+0800'}" ng-change="acquisitionTaskChanged()"></div>
+            </div>
+        </fieldset>
+        <button type="submit" class="btn btn-primary m-t-md" ng-disabled="backfillForm.$invalid || acquisition.busy">{{'ACQUISITION.TASK_SAVE_CONFIRM' | translate}}</button>
+        <button type="button" class="btn btn-default m-t-md" ng-click="acquisitionBackfillDismiss()" ng-disabled="acquisition.busy">{{'ACQUISITION.DISMISS' | translate}}</button>
+    </form>
+    <div class="well m-t-md" ng-if="acquisition.batchDetail &amp;&amp; acquisition.collection === 'batches'">
+        <h4>{{'ACQUISITION.BATCH_PROGRESS' | translate}} #{{acquisition.batchDetail.batch_id}}</h4>
+        <p>{{'ACQUISITION.BATCH_PROGRESS_NOTICE' | translate}}</p>
+        <pre>{{acquisitionDisplayDetails(acquisition.batchDetail)}}</pre>
+    </div>
+    <div class="alert alert-warning m-t-md" ng-if="acquisition.pendingAction">
+        {{'ACQUISITION.CONFIRM' | translate}} {{('ACQUISITION.' + acquisition.pendingAction.action) | translate}} #{{acquisition.pendingAction.row.id}}
+        <span ng-if="acquisition.pendingAction.body.items">({{acquisition.pendingAction.body.items.length}})</span>
+        <span ng-if="acquisition.pendingAction.body.addresses">({{acquisition.pendingAction.body.addresses.length}})</span>
+        <pre ng-if="acquisition.pendingAction.body.configuration">{{acquisitionDisplayDetails(acquisition.pendingAction.body.configuration)}}</pre>
+        <pre ng-if="['edit_mapping', 'enable_raw', 'pause_raw'].indexOf(acquisition.pendingAction.action) >= 0">{{acquisitionDisplayDetails(acquisition.pendingAction.body)}}</pre>
+        <pre ng-if="acquisition.pendingAction.action === 'mapping_batch'">{{acquisitionDisplayDetails(acquisition.pendingAction.body)}}</pre>
+        <pre ng-if="acquisition.pendingAction.action === 'submit_backfill'">{{acquisitionDisplayDetails(acquisition.pendingAction.body)}}</pre>
+        <button type="button" class="btn btn-danger btn-sm" ng-click="acquisitionExecute()" ng-disabled="acquisition.busy">{{'ACQUISITION.CONFIRM_BUTTON' | translate}}</button>
+        <button type="button" class="btn btn-default btn-sm" ng-click="acquisition.pendingAction = null" ng-disabled="acquisition.busy">{{'ACQUISITION.DISMISS' | translate}}</button>
+    </div>
+    <div class="alert alert-info" ng-if="acquisition.collection === 'items' &amp;&amp; acquisition.energyDetail">{{'ACQUISITION.ENERGY_DETAIL_NOTICE' | translate}}</div>
+    <div class="table-responsive m-t-md">
+        <table class="table table-bordered table-hover">
+            <thead><tr><th ng-if="acquisition.collection === 'preview' || acquisition.collection === 'mappings'">{{'ACQUISITION.SELECT' | translate}}</th><th ng-repeat="column in acquisition.columns">{{('ACQUISITION.' + column) | translate}}</th><th>{{'SETTING.ACTION' | translate}}</th></tr></thead>
+            <tbody>
+                <tr ng-repeat="row in acquisition.rows track by row.id">
+                    <td ng-if="acquisition.collection === 'mappings'"><input type="checkbox" ng-checked="!!acquisition.mappingSelection[row.id]" ng-click="acquisitionMappingSelect(row)" ng-disabled="acquisition.busy" aria-label="{{'ACQUISITION.SELECT' | translate}} {{row.external_address}}"></td>
+                    <td ng-if="acquisition.collection === 'preview'"><input type="checkbox" ng-checked="!!acquisition.initialization.selected[row.external_address]" ng-click="acquisitionSelect(row)" ng-disabled="acquisition.busy || acquisition.previewStatus !== 'preview'" aria-label="{{'ACQUISITION.SELECT' | translate}} {{row.external_address}}"></td>
+                    <td ng-repeat="column in acquisition.columns"><span ng-if="column !== 'processing_details'">{{acquisitionDisplayValue(column, row[column])}}</span><details ng-if="column === 'processing_details'"><summary>{{'ACQUISITION.PROCESSING_DETAILS' | translate}}</summary><pre>{{acquisitionDisplayValue(column, row[column])}}</pre></details></td>
+                    <td>
+                        <button type="button" class="btn btn-warning btn-xs" ng-if="acquisition.collection === 'business' &amp;&amp; ['blocked', 'error'].indexOf(row.status) >= 0" ng-click="acquisitionConfirm(row, 'retry_business')" ng-disabled="acquisition.busy">{{'ACQUISITION.retry_business' | translate}}</button>
+                        <button type="button" class="btn btn-default btn-xs" ng-if="acquisition.collection === 'batches'" ng-click="acquisitionBatchDetail(row)" ng-disabled="acquisition.busy">{{'ACQUISITION.BATCH_PROGRESS' | translate}}</button>
+                        <button type="button" class="btn btn-primary btn-xs" ng-if="acquisition.collection === 'batches' &amp;&amp; !row.is_cancelled" ng-click="acquisitionBatchConfirm(row, 'resume_batch')" ng-disabled="acquisition.busy">{{'ACQUISITION.resume_batch' | translate}}</button>
+                        <button type="button" class="btn btn-danger btn-xs" ng-if="acquisition.collection === 'batches' &amp;&amp; !row.is_cancelled" ng-click="acquisitionBatchConfirm(row, 'cancel_batch')" ng-disabled="acquisition.busy">{{'ACQUISITION.cancel_batch' | translate}}</button>
+                        <button type="button" class="btn btn-default btn-xs" ng-if="acquisition.collection === 'mappings'" ng-click="acquisitionMappingEdit(row)" ng-disabled="acquisition.busy">{{'ACQUISITION.edit_mapping' | translate}}</button>
+                        <button type="button" class="btn btn-default btn-xs" ng-if="acquisition.collection === 'tasks'" ng-click="acquisitionConfirm(row, row.is_enabled ? 'pause' : 'enable')" ng-disabled="acquisition.busy">{{(row.is_enabled ? 'ACQUISITION.pause' : 'ACQUISITION.enable') | translate}}</button>
+                        <button type="button" class="btn btn-default btn-xs" ng-if="acquisition.collection === 'tasks'" ng-click="acquisitionTaskEdit(row)" ng-disabled="acquisition.busy">{{'ACQUISITION.edit_task' | translate}}</button>
+                        <button type="button" class="btn btn-primary btn-xs" ng-if="acquisition.collection === 'tasks' &amp;&amp; row.task_type === 'meter_initialize'" ng-click="acquisitionConfirm(row, 'fetch')" ng-disabled="acquisition.busy || !row.is_enabled">{{'ACQUISITION.fetch' | translate}}</button>
+                        <button type="button" class="btn btn-primary btn-xs" ng-if="acquisition.collection === 'tasks' &amp;&amp; row.task_type === 'energy_backfill'" ng-click="acquisitionBackfillNew(row)" ng-disabled="acquisition.busy || !row.is_enabled">{{'ACQUISITION.submit_backfill' | translate}}</button>
+                        <button type="button" class="btn btn-default btn-xs" ng-if="acquisition.collection === 'runs'" ng-click="acquisitionItems(row)" ng-disabled="acquisition.busy">{{'ACQUISITION.ITEMS' | translate}}</button>
+                        <button type="button" class="btn btn-primary btn-xs" ng-if="acquisition.collection === 'runs' &amp;&amp; row.status === 'preview'" ng-click="acquisitionPreview(row)" ng-disabled="acquisition.busy">{{'ACQUISITION.PREVIEW' | translate}}</button>
+                        <button type="button" class="btn btn-danger btn-xs" ng-if="acquisition.collection === 'runs' &amp;&amp; ['preview', 'queued', 'running'].indexOf(row.status) >= 0" ng-click="acquisitionConfirm(row, 'cancel')" ng-disabled="acquisition.busy">{{'ACQUISITION.cancel' | translate}}</button>
+                        <button type="button" class="btn btn-warning btn-xs" ng-if="acquisition.collection === 'alerts' &amp;&amp; row.status === 'active' &amp;&amp; !row.acknowledged_by_user_id" ng-click="acquisitionConfirm(row, 'acknowledge')" ng-disabled="acquisition.busy">{{'ACQUISITION.acknowledge' | translate}}</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p ng-if="!acquisition.rows.length &amp;&amp; !acquisition.busy &amp;&amp; !acquisition.error">{{'ACQUISITION.EMPTY' | translate}}</p>
+    <button type="button" class="btn btn-default" ng-click="acquisitionPrevious()" ng-disabled="!acquisition.canPrevious || acquisition.busy">{{'ACQUISITION.PREVIOUS' | translate}}</button>
+    <button type="button" class="btn btn-default" ng-click="acquisitionNext()" ng-disabled="!acquisition.hasMore || acquisition.busy">{{'ACQUISITION.NEXT' | translate}}</button>
+    <form name="initializationForm" ng-if="acquisition.collection === 'preview' &amp;&amp; acquisition.previewStatus === 'preview'" ng-submit="acquisitionApprove()" class="m-t-md">
+        <div class="alert alert-info">{{'ACQUISITION.INIT_NOTICE' | translate}}</div>
+        <fieldset ng-disabled="acquisition.busy">
+            <button type="button" class="btn btn-default" ng-click="acquisitionSelectPage()">{{'ACQUISITION.SELECT_PAGE' | translate}}</button>
+            <button type="button" class="btn btn-default" ng-click="acquisitionClearSelection()">{{'ACQUISITION.CLEAR_SELECTION' | translate}}</button>
+            <span>{{'ACQUISITION.SELECTED_COUNT' | translate}}: {{acquisitionSelectedCount()}} / 200</span>
+            <div class="row">
+                <div class="col-sm-4"><label>{{'ACQUISITION.energy_category_id' | translate}}</label>
+                    <select class="form-control" required ng-model="acquisition.initialization.defaults.energy_category_id" ng-options="category.id as category.name for category in acquisition.initialization.categories" ng-change="acquisitionConfigurationChanged()"><option value="">{{'COMMON.PLACEHOLDER' | translate}}</option></select></div>
+                <div class="col-sm-4"><label>{{'ACQUISITION.cost_center_id' | translate}}</label>
+                    <select class="form-control" required ng-model="acquisition.initialization.defaults.cost_center_id" ng-options="center.id as center.name for center in acquisition.initialization.centers" ng-change="acquisitionConfigurationChanged()"><option value="">{{'COMMON.PLACEHOLDER' | translate}}</option></select></div>
+                <div class="col-sm-4"><label>{{'ACQUISITION.is_counted' | translate}}</label>
+                    <select class="form-control" required ng-model="acquisition.initialization.defaults.is_counted" ng-change="acquisitionConfigurationChanged()" ng-options="value for value in [true, false]"><option value="">{{'COMMON.PLACEHOLDER' | translate}}</option></select></div>
+            </div>
+            <div class="row">
+                <div class="col-sm-3"><label>{{'ACQUISITION.hourly_low_limit' | translate}}</label><input class="form-control" required ng-model="acquisition.initialization.defaults.hourly_low_limit" ng-change="acquisitionConfigurationChanged()"></div>
+                <div class="col-sm-3"><label>{{'ACQUISITION.hourly_high_limit' | translate}}</label><input class="form-control" required ng-model="acquisition.initialization.defaults.hourly_high_limit" ng-change="acquisitionConfigurationChanged()"></div>
+                <div class="col-sm-3"><label>{{'ACQUISITION.units' | translate}}</label><input class="form-control" required maxlength="32" ng-model="acquisition.initialization.defaults.units" ng-change="acquisitionConfigurationChanged()"></div>
+                <div class="col-sm-3"><label>{{'ACQUISITION.point_high_limit' | translate}}</label><input class="form-control" required ng-model="acquisition.initialization.defaults.point_high_limit" ng-change="acquisitionConfigurationChanged()"></div>
+            </div>
+            <div ng-repeat="(address, selected) in acquisition.initialization.selected" class="m-t-sm">
+                <label>{{address}} - {{'ACQUISITION.name' | translate}}</label>
+                <input class="form-control" required maxlength="255" ng-model="selected.name" ng-change="acquisitionConfigurationChanged()">
+            </div>
+            <button type="submit" class="btn btn-primary m-t-md" ng-disabled="initializationForm.$invalid || acquisition.busy || !acquisitionSelectedCount() || acquisitionSelectedCount() > 200">{{'ACQUISITION.approve' | translate}}</button>
+            <button type="button" class="btn btn-warning m-t-md" ng-click="acquisitionSubmit()" ng-disabled="!acquisition.initialization.approved || acquisition.busy">{{'ACQUISITION.submit' | translate}}</button>
+        </fieldset>
+    </form>
+</div>

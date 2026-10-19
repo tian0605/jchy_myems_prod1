@@ -1,0 +1,17 @@
+*
+!contracts.py
+!client.py
+!verify.py
+!Dockerfile
+!Dockerfile.worker
+!requirements.txt
+!persistence.py
+!execution.py
+!worker.py
+!scheduling.py
+!health.py
+!batches.py
+!initialization.py
+!pyproject.toml
+!myems_jishiyun/
+!myems_jishiyun/*.py
