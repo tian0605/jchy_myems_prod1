@@ -414,8 +414,11 @@ def data_context_message(data_context):
         'role': 'system',
         'content': (
             'The following MyEMS data-context snapshot is authoritative for this response. Use only its metrics for '
-            'numeric claims. Copy metric values, units, factors, and totals exactly as provided; do not recalculate, '
-            'round differently, add source counts, or infer additional metrics. Explicitly disclose missing_data and '
-            'limitations; do not estimate them in real-data mode.\n\n{0}'
+            'source facts. You may calculate additional totals, means, shares, differences, intensities, growth rates '
+            'and unit conversions from available compatible inputs. Distinguish recorded values from derived results; '
+            'state the inputs, formula, units, scope and denominator for key calculations. Sensible rounding is allowed '
+            'for derived results, but never overwrite source facts. Do not invent measurements, factors, baselines or '
+            'sources, or treat missing records as zero. Explicitly disclose missing_data and limitations; '
+            'estimates must follow the report mode and must never be presented as measurements.\n\n{0}'
         ).format(json.dumps(data_context, ensure_ascii=False)),
     }

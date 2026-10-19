@@ -97,6 +97,14 @@ myems_production_db = {
     'password': config('MYEMS_PRODUCTION_DB_PASSWORD', default=''),
 }
 
+# Opt-in fallback for environments with an unstable native libmysql driver.
+if config('MYSQL_CONNECTOR_USE_PURE', default=False, cast=bool):
+    for database_config in (myems_system_db, myems_energy_db, myems_energy_baseline_db,
+                            myems_energy_plan_db, myems_energy_prediction_db, myems_billing_db,
+                            myems_historical_db, myems_user_db, myems_fdd_db, myems_reporting_db,
+                            myems_carbon_db, myems_production_db):
+        database_config['use_pure'] = True
+
 redis = {
     'is_enabled': config('IS_REDIS_ENABLED', default=False, cast=bool),
     'host': config('REDIS_HOST', default='127.0.0.1'),
@@ -154,6 +162,9 @@ is_recursive = config('IS_RECURSIVE', default=True, cast=bool)
 session_expires_in_seconds = config('SESSION_EXPIRES_IN_SECONDS', default=28800, cast=int)
 
 ai_assistant = {
+    'chat_data_enabled': config('AI_CHAT_DATA_ENABLED', default=False, cast=bool),
+    'chat_timeout_seconds': config('AI_CHAT_TIMEOUT_SECONDS', default=180, cast=int),
+    'chat_disable_thinking': config('AI_CHAT_DISABLE_THINKING', default=True, cast=bool),
     'is_enabled': config('AI_ASSISTANT_ENABLED', default=False, cast=bool),
     'provider': config('AI_ASSISTANT_PROVIDER', default=''),
     'base_url': config('AI_ASSISTANT_BASE_URL', default=''),
@@ -170,3 +181,6 @@ ai_assistant = {
     'max_attachments_per_message': config('AI_ASSISTANT_MAX_ATTACHMENTS_PER_MESSAGE', default=5, cast=int),
     'max_attachment_context_length': config('AI_ASSISTANT_MAX_ATTACHMENT_CONTEXT_LENGTH', default=60000, cast=int),
 }
+
+if not 1 <= ai_assistant['chat_timeout_seconds'] <= 600:
+    raise ValueError('AI_CHAT_TIMEOUT_SECONDS must be between 1 and 600.')

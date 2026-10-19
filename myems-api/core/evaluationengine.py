@@ -202,14 +202,26 @@ def evaluate_metric(enterprise_space_id, space_id, product_id, metric_code, actu
                 'advice_list': [],
             }
 
+        rule_context = {
+            'metric_code': metric_code,
+            'metric_unit': rule_set['metric_unit'],
+            'rule_set_id': rule_set['id'],
+            'rule_set_code': rule_set['rule_set_code'],
+            'rule_set_name': rule_set['name'],
+            'benchmark_source': rule_set['benchmark_source'],
+            'scope_level': rule_set['scope_level'],
+            'effective_date': rule_set['effective_date'].isoformat() if rule_set['effective_date'] else None,
+            'expiry_date': rule_set['expiry_date'].isoformat() if rule_set['expiry_date'] else None,
+            'rule_updated_datetime_utc': (rule_set['updated_datetime_utc'].isoformat()
+                                         if rule_set['updated_datetime_utc'] else None),
+            'benchmark_value': rule_set['benchmark_value'],
+            'benchmark_display_name': rule_set['benchmark_display_name'],
+            'actual_value': actual_decimal,
+        }
         detail = _query_matching_detail(cursor, rule_set['id'], actual_decimal)
         if detail is None:
             return {
-                'metric_code': metric_code,
-                'rule_set_id': rule_set['id'],
-                'rule_set_name': rule_set['name'],
-                'benchmark_value': rule_set['benchmark_value'],
-                'actual_value': actual_decimal,
+                **rule_context,
                 'status': 'detail_missing',
                 'is_compliant': None,
                 'advice_list': [],
@@ -221,15 +233,12 @@ def evaluate_metric(enterprise_space_id, space_id, product_id, metric_code, actu
             gap_rate = (actual_decimal - benchmark_value) / benchmark_value
 
         return {
-            'metric_code': metric_code,
-            'metric_unit': rule_set['metric_unit'],
-            'rule_set_id': rule_set['id'],
-            'rule_set_code': rule_set['rule_set_code'],
-            'rule_set_name': rule_set['name'],
+            **rule_context,
             'detail_id': detail['id'],
-            'benchmark_value': benchmark_value,
-            'benchmark_display_name': rule_set['benchmark_display_name'],
-            'actual_value': actual_decimal,
+            'min_value': detail['min_value'],
+            'max_value': detail['max_value'],
+            'min_inclusive': detail['min_inclusive'],
+            'max_inclusive': detail['max_inclusive'],
             'gap_rate': gap_rate,
             'grade_code': detail['grade_code'],
             'grade_label': detail['grade_label'],

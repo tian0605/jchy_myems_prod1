@@ -38,6 +38,15 @@ CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_messages` (
 );
 
 -- ---------------------------------------------------------------------------------------------------------------------
+-- Table `myems_system_db`.`tbl_ai_chat_contexts`
+-- ---------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_chat_contexts` (
+  `message_id` BIGINT NOT NULL,
+  `context_json` LONGTEXT NOT NULL,
+  PRIMARY KEY (`message_id`)
+);
+
+-- ---------------------------------------------------------------------------------------------------------------------
 -- Table `myems_system_db`.`tbl_ai_assistant_audits`
 -- ---------------------------------------------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_ai_assistant_audits` (
@@ -2963,7 +2972,7 @@ CREATE TABLE IF NOT EXISTS `myems_system_db`.`tbl_versions` (
 INSERT INTO `myems_system_db`.`tbl_versions`
 (`id`, `version`, `release_date`)
 VALUES
-(1, '6.3.19', '2026-10-10');
+(1, '6.3.20', '2026-10-18');
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Table `myems_system_db`.`tbl_wind_farms`
