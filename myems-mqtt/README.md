@@ -35,6 +35,27 @@ cp example.env .env
 python main.py
 ```
 
+### Callback regression tests
+
+The service uses Paho MQTT Callback API VERSION2 for its MQTTv5 connect and
+disconnect callbacks. Explicitly selecting this API prevents a disconnect from
+terminating the network thread with a callback argument mismatch.
+
+Run the offline tests after installing the existing requirements:
+
+```bash
+cd myems-mqtt
+python -m unittest test_acquisition_callbacks -v
+```
+
+The tests dispatch successful and rejected MQTTv5 connection acknowledgements
+and a disconnect through Paho itself. Database writes and network connections
+are mocked; no telemetry is published.
+
+Broker authentication is separate from callback compatibility. A successful
+subscription does not prove that devices are publishing new data. Verify broker
+message counters and historical timestamps during deployment acceptance.
+
 ### Notes
 
 - The first implementation supports one or more configured topics per datasource.

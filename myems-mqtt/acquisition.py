@@ -65,6 +65,7 @@ def process(logger: Logger, data_source_id: int, broker_config: dict[str, Any]) 
         return
 
     client = mqtt.Client(
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
         client_id=_build_client_id(data_source_id, broker_config),
         clean_session=None,
         userdata=cast(
